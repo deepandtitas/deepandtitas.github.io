@@ -1,6 +1,7 @@
 import { useCurrentFrame } from "remotion";
 import { BEATS, SCENES } from "../../config/timeline";
-import { FloralMandap, MANDAP } from "../components/FloralMandap";
+import { MANDAP, MandapArch } from "../components/FloralMandap";
+import { Layer } from "../components/Layer";
 import { GuidedHotspot } from "../components/GuidedHotspot";
 import { SceneHeading } from "../components/SceneHeading";
 import { Bride, Groom } from "../components/WeddingCouple";
@@ -17,7 +18,6 @@ const SCENE_FRAMES = SCENES.meeting.end - SCENES.meeting.start;
  */
 export const MeetingScene = () => {
   const frame = useCurrentFrame();
-  const g = frame + SCENES.meeting.start;
   const { reducedMotion, interactive, guided } = useExperience();
   const tx = useText();
 
@@ -37,14 +37,13 @@ export const MeetingScene = () => {
   const bow = Math.sin(Math.PI * progress(frame, [B.meetPause[0] + 6, B.meetPause[1] + 18])) * 5;
 
   const gather = reducedMotion ? progress(frame, [B.flowersGather[0], B.flowersGather[0] + 20]) : progress(frame, B.flowersGather);
-  const breathe = frame * 0.09;
 
   return (
     <div style={{ position: "absolute", inset: 0 }}>
       <SceneHeading text={tx.meeting} frame={frame} fadeIn={B.headingIn} fadeOutAt={SCENE_FRAMES - 70} />
 
-      <svg width={1080} height={1920} viewBox="0 0 1080 1920" style={{ position: "absolute", inset: 0 }}>
-        <FloralMandap gather={gather} build={0} lights={0} time={g} />
+      <Layer>
+        <MandapArch gather={gather} />
         <Groom
           x={groomX}
           y={y}
@@ -56,7 +55,6 @@ export const MeetingScene = () => {
           headTilt={bow}
           lookDown={0.1 + greet * 0.35}
           opacity={fade}
-          breathe={breathe}
         />
         <Bride
           x={brideX}
@@ -70,9 +68,8 @@ export const MeetingScene = () => {
           headTilt={-bow}
           lookDown={0.3 + greet * 0.3}
           opacity={fade}
-          breathe={breathe + 1}
         />
-      </svg>
+      </Layer>
 
       {interactive && guided.awaiting === "wedding" && (
         <GuidedHotspot

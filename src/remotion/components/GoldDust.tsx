@@ -1,6 +1,6 @@
 import { seeded } from "../lib/anim";
 
-const COUNT = 34;
+const COUNT = 26;
 
 interface Props {
   frame: number;
@@ -13,12 +13,7 @@ export const GoldDust = ({ frame, intensity }: Props) => {
   if (intensity <= 0.01) return null;
   const n = Math.ceil(COUNT * Math.min(1, intensity));
   return (
-    <svg
-      width={1080}
-      height={1920}
-      viewBox="0 0 1080 1920"
-      style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
-    >
+    <g>
       {Array.from({ length: n }, (_, i) => {
         const speed = 0.0009 + seeded(i + 3) * 0.0012;
         const f = (seeded(i + 50) + frame * speed) % 1;
@@ -38,6 +33,6 @@ export const GoldDust = ({ frame, intensity }: Props) => {
           />
         );
       })}
-    </svg>
+    </g>
   );
 };

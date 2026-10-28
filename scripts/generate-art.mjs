@@ -1,9 +1,9 @@
-// Generates the static, painterly SVG layers in public/images/.
-// Deterministic (seeded) — re-run with `node scripts/generate-art.mjs` after tweaking.
+// Generates the static, painterly SVG layers in art/ (source files; they are baked to WebP by scripts/bake-art.mjs).
+// Deterministic (seeded) — re-run `node scripts/generate-art.mjs && node scripts/bake-art.mjs` after tweaking.
 // Layers are rasterised once by the browser; only transforms/opacity animate at runtime.
 import { mkdirSync, writeFileSync } from "node:fs";
 
-const OUT = new URL("../public/images/", import.meta.url);
+const OUT = new URL("../art/", import.meta.url);
 mkdirSync(OUT, { recursive: true });
 
 const INK = "#30251f";
@@ -85,7 +85,6 @@ const wcFilter = (id, scale = 14, freq = 0.018) =>
 </defs>
 <rect width="1080" height="1920" fill="#f5ebdd"/>
 <rect width="1080" height="1920" filter="url(#mottle)" opacity=".5"/>
-<rect width="1080" height="1920" filter="url(#speck)" opacity=".55"/>
 <rect width="1080" height="1920" fill="url(#vig)"/>`;
   writeFileSync(new URL("paper.svg", OUT), svg(1080, 1920, body));
 }

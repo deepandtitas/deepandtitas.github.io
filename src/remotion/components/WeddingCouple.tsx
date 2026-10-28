@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 
 /**
  * The single source of truth for how Deep and Titas look. Every scene draws them through
@@ -412,8 +412,6 @@ export interface FigureProps {
   /** 0 = eyes level, 1 = eyes cast down. */
   lookDown?: number;
   opacity?: number;
-  /** Idle breathing phase (frame-derived by the caller). */
-  breathe?: number;
 }
 
 const fullPose = (p?: Partial<ArmPose>): ArmPose => ({
@@ -429,13 +427,12 @@ const Shell = ({
   walk = 0,
   moving = 0,
   opacity = 1,
-  breathe = 0,
   children,
-}: Pick<FigureProps, "x" | "y" | "scale" | "walk" | "moving" | "opacity" | "breathe"> & {
+}: Pick<FigureProps, "x" | "y" | "scale" | "walk" | "moving" | "opacity"> & {
   children: ReactNode;
 }) => {
   const bob = Math.abs(Math.sin(walk)) * 7 * moving;
-  const sway = Math.sin(walk) * 1.3 * moving + Math.sin(breathe) * 0.25;
+  const sway = Math.sin(walk) * 1.3 * moving;
   return (
     <g transform={`translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${scale})`} opacity={opacity}>
       <ellipse cx={0} cy={4} rx={118} ry={15} fill={INK} opacity={0.18} />
@@ -444,7 +441,7 @@ const Shell = ({
   );
 };
 
-export const Groom = ({
+const GroomImpl = ({
   x,
   y,
   scale = 1,
@@ -457,13 +454,12 @@ export const Groom = ({
   headTilt = 0,
   lookDown = 0.15,
   opacity = 1,
-  breathe = 0,
 }: FigureProps) => {
   const arms = fullPose(pose);
   const stepL = Math.max(0, Math.sin(walk)) * 7 * moving;
   const stepR = Math.max(0, -Math.sin(walk)) * 7 * moving;
   return (
-    <Shell {...{ x, y, scale, walk, moving, opacity, breathe }}>
+    <Shell {...{ x, y, scale, walk, moving, opacity }}>
       {/* feet: pointed golden mojari */}
       <path d={`M-62 ${-6 - stepL}Q-40 ${-20 - stepL} -14 ${-6 - stepL}Q-30 2 -62 ${-6 - stepL}Z`} fill={GOLD} stroke={INK} strokeWidth={2} />
       <path d={`M62 ${-6 - stepR}Q40 ${-20 - stepR} 14 ${-6 - stepR}Q30 2 62 ${-6 - stepR}Z`} fill={GOLD} stroke={INK} strokeWidth={2} />
@@ -524,7 +520,7 @@ export const Groom = ({
   );
 };
 
-export const Bride = ({
+const BrideImpl = ({
   x,
   y,
   scale = 1,
@@ -537,7 +533,6 @@ export const Bride = ({
   headTilt = 0,
   lookDown = 0.35,
   opacity = 1,
-  breathe = 0,
   paan = false,
 }: FigureProps & {
   /** Whether she is carrying the two betel (paan) leaves of the শুভদৃষ্টি in her hands. */
@@ -547,7 +542,7 @@ export const Bride = ({
   const stepL = Math.max(0, Math.sin(walk)) * 6 * moving;
   const stepR = Math.max(0, -Math.sin(walk)) * 6 * moving;
   return (
-    <Shell {...{ x, y, scale, walk, moving, opacity, breathe }}>
+    <Shell {...{ x, y, scale, walk, moving, opacity }}>
       {/* feet with alta */}
       <ellipse cx={-34} cy={-7 - stepL} rx={24} ry={9} fill={SKIN.bride} stroke={INK} strokeWidth={2} />
       <ellipse cx={34} cy={-7 - stepR} rx={24} ry={9} fill={SKIN.bride} stroke={INK} strokeWidth={2} />
@@ -630,6 +625,22 @@ export const Bride = ({
     </Shell>
   );
 };
+
+/** Props equality that treats the `pose` object by value, so a figure whose pose did not change is not re-rendered. */
+const sameFigure = (a: Record<string, unknown>, b: Record<string, unknown>): boolean => {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const k of keys) {
+    if (k === "pose") {
+      const pa = (a.pose ?? {}) as Partial<ArmPose>;
+      const pb = (b.pose ?? {}) as Partial<ArmPose>;
+      if ((pa.hold ?? 0) !== (pb.hold ?? 0) || (pa.face ?? 0) !== (pb.face ?? 0) || (pa.namaskar ?? 0) !== (pb.namaskar ?? 0)) return false;
+    } else if (a[k] !== b[k]) return false;
+  }
+  return true;
+};
+
+export const Groom = memo(GroomImpl, sameFigure);
+export const Bride = memo(BrideImpl, sameFigure);
 
 /** Hidden SVG defs for the marigold glyph shared by garlands, mandap strings and arches. */
 export const MarigoldDefs = () => (

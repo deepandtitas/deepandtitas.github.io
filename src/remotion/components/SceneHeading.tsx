@@ -1,6 +1,6 @@
 import { easeSoft, progress } from "../lib/anim";
 import { useExperience } from "../experience";
-import { FONT_BN, FONT_EN } from "../fonts";
+import { bnWeight, FONT_BN, FONT_EN } from "../fonts";
 
 type Tone = "ink" | "light";
 
@@ -44,8 +44,8 @@ export const SceneHeading = ({ text, frame, fadeIn, fadeOutAt, tone = "ink", y =
       <span
         style={{
           fontFamily: lang === "bn" ? FONT_BN : FONT_EN,
-          fontWeight: 600,
-          fontSize: lang === "bn" ? 62 : 54,
+          fontWeight: bnWeight(lang, 600),
+          fontSize: lang === "bn" ? 66 : 54,
           letterSpacing: lang === "bn" ? "0.03em" : "0.14em",
           textTransform: lang === "en" ? "uppercase" : "none",
           color,

@@ -37,15 +37,23 @@ export const ExperienceShell = ({ lang, onLangChange, reducedMotion }: Props) =>
 
   // Warm the browser cache for the painted layers (and the soundtrack) while the guest reads the intro.
   useEffect(() => {
-    const images = [IMAGES.paper, IMAGES.grain, IMAGES.gardenFar, IMAGES.gardenMid, IMAGES.gardenNear].map((p) => {
+    const images = [IMAGES.paper, IMAGES.grainTile, IMAGES.gardenFar, IMAGES.gardenMid, IMAGES.gardenNear].map((p) => {
       const img = new Image();
       img.decoding = "async";
       img.src = asset(p, base);
       return img;
     });
-    if (audioSrc) fetch(audioSrc).catch(() => undefined);
+    // The soundtrack (~1 MB) is only needed once someone presses play: fetch it when the browser is idle, not during load.
+    const warmAudio = () => {
+      if (audioSrc) fetch(audioSrc).catch(() => undefined);
+    };
+    const idle = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+    const timer = idle ? idle(warmAudio, { timeout: 4000 }) : window.setTimeout(warmAudio, 2500);
     // keep references until unmount so the browser keeps the decoded images warm
-    return () => void images.length;
+    return () => {
+      void images.length;
+      if (!idle) window.clearTimeout(timer);
+    };
   }, [base, audioSrc]);
 
   useEffect(() => {
@@ -55,9 +63,11 @@ export const ExperienceShell = ({ lang, onLangChange, reducedMotion }: Props) =>
 
   useEffect(() => () => window.clearTimeout(copiedTimer.current), []);
 
-  // Dev-only handle so end-to-end checks can read the frame and seek the Player.
+  // Test/profiling handle (dev, or any build opened with ?debug) so checks can read the frame and seek the Player.
   useEffect(() => {
-    if (import.meta.env.DEV) Object.assign(window, { __weddingPlayer: playerRef, __weddingState: stateRef });
+    if (import.meta.env.DEV || new URLSearchParams(window.location.search).has("debug")) {
+      Object.assign(window, { __weddingPlayer: playerRef, __weddingState: stateRef });
+    }
   }, [stateRef]);
 
   // Sound begins only after a guest gesture (browsers block it otherwise); the story works fine without it.

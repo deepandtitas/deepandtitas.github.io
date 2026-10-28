@@ -13,11 +13,15 @@
     "test": "vitest run",
     "studio": "remotion studio src/remotion/index.ts",
     "render": "remotion render src/remotion/index.ts DeepAndTitasWedding out/deep-and-titas.mp4",
-    "still": "remotion still src/remotion/index.ts DeepAndTitasWedding out/invitation.png --frame=1499"
+    "still": "remotion still src/remotion/index.ts DeepAndTitasWedding out/invitation.png --frame=1499",
+    "art": "node scripts/generate-art.mjs && node scripts/bake-art.mjs",
+    "og": "node scripts/og-image.mjs"
   },
   "dependencies": {
     "@fontsource/cormorant-garamond": "^5.3.0",
-    "@fontsource/noto-serif-bengali": "^5.3.0",
+    "@fontsource/galada": "^5.3.0",
+    "@fontsource/hind-siliguri": "^5.3.0",
+    "@fontsource/tiro-bangla": "^5.3.0",
     "@remotion/media": "4.0.539",
     "@remotion/player": "4.0.539",
     "react": "^19.3.1",
@@ -33,6 +37,7 @@
     "eslint": "^9.39.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.0.0",
+    "playwright-core": "^1.64.1",
     "typescript": "^5.9.0",
     "typescript-eslint": "^8.72.1",
     "vite": "^8.3.5",

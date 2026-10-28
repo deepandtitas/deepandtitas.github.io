@@ -3,6 +3,7 @@ import { SCENES, SCENE_OVERLAP, sceneDuration } from "../config/timeline";
 import { GardenBack, GardenForeground } from "./components/GardenStage";
 import { FloatingPetals } from "./components/FloatingPetals";
 import { GoldDust } from "./components/GoldDust";
+import { Layer } from "./components/Layer";
 import { GrainOverlay, PaperBackground } from "./components/PaperBackground";
 import { SharedDefs } from "./components/SharedDefs";
 import { ExperienceContext } from "./experience";
@@ -39,10 +40,10 @@ const Atmosphere = ({ reduced }: { reduced: boolean }) => {
   if (reduced) return null;
   const kind = frame >= S.wedding.start + 200 && frame < S.wedding.end ? "marigold" : "mixed";
   return (
-    <>
+    <Layer>
       <GoldDust frame={frame} intensity={dustIntensity(frame)} />
       <FloatingPetals frame={frame} intensity={petalIntensity(frame)} kind={kind} />
-    </>
+    </Layer>
   );
 };
 
@@ -53,7 +54,7 @@ const Atmosphere = ({ reduced }: { reduced: boolean }) => {
 export const WeddingComposition = (props: WeddingProps) => (
   <ExperienceContext.Provider value={props}>
     <FontGate>
-      <AbsoluteFill style={{ backgroundColor: "#f5ebdd", overflow: "hidden", pointerEvents: "none" }}>
+      <AbsoluteFill style={{ backgroundColor: "#f5ebdd", overflow: "hidden", pointerEvents: "none", fontSynthesis: "none" }}>
         <SharedDefs />
         <PaperBackground />
 

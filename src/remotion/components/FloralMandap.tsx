@@ -1,5 +1,6 @@
 import { MEET_Y } from "../lib/path";
 import { easeOut, lerp, progress, seeded } from "../lib/anim";
+import { memo } from "react";
 import { Diya } from "./Diya";
 
 const INK = "#30251f";
@@ -48,22 +49,23 @@ const DIYA_SPOTS = [
 
 export const DIYA_COUNT = DIYA_SPOTS.length;
 
-interface FloralMandapProps {
-  /** Arch flowers flying in and settling: 0 scattered → 1 formed. */
-  gather: number;
-  /** The rest of the structure: posts, canopy, strings, floor. */
+/**
+ * The mandap is split into layers that change at different rates so the browser can composite them separately:
+ *  - MandapStructure: floor, canopy, posts, strings (static once built — painted once, never repainted)
+ *  - MandapArch: the gathered marigold arch (static once gathered)
+ *  - MandapDiyas: small flickering flames
+ *  - MandapGlow: a gold bloom (a CSS gradient whose opacity is composited on the GPU)
+ * Each is memoised on numeric props, so unchanged layers cost nothing per frame.
+ */
+const geom = () => MANDAP;
+
+interface StructureProps {
+  /** The structure growing: posts, canopy, strings, floor. */
   build: number;
-  /** Diyas lighting up one by one. */
-  lights: number;
-  /** Global frame, for gentle sway and flame flicker (deterministic). */
-  time: number;
-  /** Warm gold bloom around the couple (the emotional peak). */
-  glow?: number;
 }
 
-export const FloralMandap = ({ gather, build, lights, time, glow = 0 }: FloralMandapProps) => {
-  const { cx, baseY, postX, archCy, archRx, archRy } = MANDAP;
-  const sway = Math.sin(time * 0.045) * 1.6;
+export const MandapStructure = memo(function MandapStructure({ build }: StructureProps) {
+  const { cx, baseY, postX, archCy, archRx, archRy } = geom();
   const domeA = progress(build, [0.08, 0.6]);
   const postH = (baseY - 705) * easeOut(progress(build, [0, 0.55]));
   const valance = progress(build, [0.3, 0.72]);
@@ -72,11 +74,6 @@ export const FloralMandap = ({ gather, build, lights, time, glow = 0 }: FloralMa
 
   return (
     <g>
-      {/* gold bloom behind everything */}
-      {glow > 0.001 && (
-        <circle cx={cx} cy={1090} r={760} fill="url(#glow-grad)" opacity={glow} />
-      )}
-
       {/* alpana floor */}
       <g opacity={floor} transform={`translate(${cx} ${baseY + 38})`}>
         <ellipse rx={430} ry={78} fill="#f1e2c4" fillOpacity={0.55} stroke={SINDOOR} strokeOpacity={0.55} strokeWidth={4} />
@@ -187,13 +184,20 @@ export const FloralMandap = ({ gather, build, lights, time, glow = 0 }: FloralMa
           const len = (90 + seeded(i + 4) * 120) * strings;
           const n = Math.floor(len / 24);
           return Array.from({ length: n }, (_, j) => (
-            <Marigold key={`${i}-${j}`} x={x + Math.sin(time * 0.05 + i) * 2.5 * (j / 8)} y={archCy + 70 + j * 24} r={11} variant={i + j} rot={j * 50} />
+            <Marigold key={`${i}-${j}`} x={x} y={archCy + 70 + j * 24} r={11} variant={i + j} rot={j * 50} />
           ));
         })}
       </g>
 
+    </g>
+  );
+});
+
+export const MandapArch = memo(function MandapArch({ gather }: { gather: number }) {
+  return (
+    <g>
       {/* the gathered arch of flowers (formed during the meeting scene) */}
-      <g transform={`translate(${sway.toFixed(2)} 0)`}>
+      <g>
         {Array.from({ length: ARCH_COUNT }, (_, i) => {
           const fin = archPoint(i);
           const sx = fin.x + (seeded(i * 3 + 1) - 0.5) * 1000;
@@ -212,10 +216,37 @@ export const FloralMandap = ({ gather, build, lights, time, glow = 0 }: FloralMa
         })}
       </g>
 
+    </g>
+  );
+});
+
+export const MandapDiyas = memo(function MandapDiyas({ build, lights, time }: { build: number; lights: number; time: number }) {
+  if (build <= 0.02) return null;
+  return (
+    <g>
       {/* diyas */}
       {build > 0.02 && DIYA_SPOTS.map((d, i) => (
         <Diya key={i} x={d.x} y={d.y} lit={progress(lights, [(i / DIYA_COUNT) * 0.7, (i / DIYA_COUNT) * 0.7 + 0.3])} time={time + i * 11} scale={0.95 + (d.y - 1540) / 600} />
       ))}
     </g>
   );
-};
+});
+
+/** Warm gold bloom behind the couple (the emotional peak). A plain CSS gradient: only its opacity changes. */
+export const MandapGlow = ({ glow }: { glow: number }) =>
+  glow > 0.001 ? (
+    <div
+      style={{
+        position: "absolute",
+        left: MANDAP.cx - 760,
+        top: 1090 - 760,
+        width: 1520,
+        height: 1520,
+        borderRadius: "50%",
+        opacity: glow,
+        willChange: "opacity",
+        background: "radial-gradient(circle, rgba(249,226,160,.9) 0%, rgba(241,196,99,.35) 45%, rgba(241,196,99,0) 70%)",
+        pointerEvents: "none",
+      }}
+    />
+  ) : null;

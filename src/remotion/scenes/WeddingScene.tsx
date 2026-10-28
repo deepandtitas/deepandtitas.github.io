@@ -1,7 +1,8 @@
 import { useCurrentFrame } from "remotion";
 import { BEATS, SCENES, sceneDuration } from "../../config/timeline";
 import { Emblem } from "../components/Emblem";
-import { FloralMandap } from "../components/FloralMandap";
+import { MandapArch, MandapDiyas, MandapStructure } from "../components/FloralMandap";
+import { GlowDisc, Layer } from "../components/Layer";
 import { GuidedHotspot } from "../components/GuidedHotspot";
 import { InvitationCard } from "../components/InvitationCard";
 import { SceneHeading } from "../components/SceneHeading";
@@ -84,7 +85,6 @@ export const WeddingScene = () => {
   const bow = bump(f, 286, 322) * 5;
   const brideLook = 0.4 * (1 - progress(f, [LEAVES.open[0] + 24, LEAVES.open[1] + 22]));
   const brideTurn = -0.55 - 0.35 * progress(f, [LEAVES.open[0] + 14, LEAVES.open[1]]);
-  const breathe = g * 0.09;
 
   // — light —
   const meet = bump(f, LEAVES.open[0] + 22, LEAVES.open[1] + 52) * 0.6;
@@ -105,12 +105,18 @@ export const WeddingScene = () => {
     <div style={{ position: "absolute", inset: 0 }}>
       <SceneHeading text={tx.wedding} frame={f} fadeIn={B.headingIn} fadeOutAt={B.tableau[0] + 20} tone="light" />
 
-      <svg width={1080} height={1920} viewBox="0 0 1080 1920" style={{ position: "absolute", inset: 0 }}>
-        <FloralMandap gather={1} build={build} lights={lights} time={g} glow={glow} />
+      {/* warm lamplight and the moment their eyes meet: GPU-composited glows */}
+      <GlowDisc x={540} y={1090} r={760} opacity={glow} />
+      <GlowDisc x={GAZE_POINT.x} y={GAZE_POINT.y + 10} r={230} opacity={meet} />
 
-        {/* the moment their eyes meet */}
-        {meet > 0.01 && <circle cx={GAZE_POINT.x} cy={GAZE_POINT.y + 10} r={230} fill="url(#glow-grad)" opacity={meet} />}
+      {/* the mandap, in layers that change at different rates */}
+      <Layer>
+        <MandapStructure build={build} />
+        <MandapArch gather={1} />
+      </Layer>
 
+      <Layer>
+        <MandapDiyas build={build} lights={lights} time={g} />
         <Groom
           x={COUPLE.groomX}
           y={COUPLE.y}
@@ -121,7 +127,6 @@ export const WeddingScene = () => {
           garlandWorn={worn}
           headTilt={bow}
           lookDown={0.08 + 0.25 * bump(f, 286, 322)}
-          breathe={breathe}
         />
         <Bride
           x={COUPLE.brideX}
@@ -134,7 +139,6 @@ export const WeddingScene = () => {
           garlandWorn={worn}
           headTilt={-bow}
           lookDown={brideLook + 0.25 * bump(f, 286, 322)}
-          breathe={breathe + 1}
         />
 
         {/* the betel leaves, set down on the floor beside her */}
@@ -150,14 +154,14 @@ export const WeddingScene = () => {
             <path d="M0 -0.8V0.7" stroke="#30251f" strokeOpacity={0.3} strokeWidth={0.04} />
           </g>
         )}
-      </svg>
+      </Layer>
 
-      {inScene && (
+      {inScene && edge > 0 && (
         <>
           <InvitationCard frame={0} top={cardTop} border={edge} />
-          <svg width={1080} height={1920} viewBox="0 0 1080 1920" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+          <Layer>
             <Emblem x={ORNAMENT_POS.x} y={ORNAMENT_POS.y} scale={ORNAMENT_SCALE * (reducedMotion ? 1 : lerp(0.5, 1, morph))} opacity={morph} />
-          </svg>
+          </Layer>
         </>
       )}
 

@@ -5,7 +5,7 @@ import { formatDate } from "../../config/dates";
 import { EVENT_KEYS, hasValue, mapUrl, visibleEvents, wedding, type EventKey } from "../../config/wedding";
 import { easeInOut, easeOut, progress } from "../lib/anim";
 import { useAsset, useExperience, useText } from "../experience";
-import { FONT_BN, FONT_EN } from "../fonts";
+import { bnWeight, FONT_BN, FONT_BN_DISPLAY, FONT_BN_UI, FONT_EN } from "../fonts";
 
 const INK = "#30251f";
 const MUTED = "#665343";
@@ -85,6 +85,9 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
   const url = useAsset();
   const bn = lang === "bn";
   const fontMain = bn ? FONT_BN : FONT_EN;
+  const fontNames = bn ? FONT_BN_DISPLAY : FONT_EN;
+  const fontUi = bn ? FONT_BN_UI : FONT_EN; // small labels and the map button stay crisp
+  const w = (n: number) => bnWeight(lang, n);
 
   const heading = progress(frame, B.heading, easeOut);
   const names = progress(frame, B.names, easeOut);
@@ -95,7 +98,11 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
   // one soft gold glow passing over the names, then it settles for good
   const shimmer = Math.sin(Math.PI * progress(frame, [B.flourish[0] - 10, B.flourish[1] + 30])) * 0.9;
 
-  const rise = (p: number) => ({ opacity: p, transform: `translateY(${(1 - p) * 26}px)` });
+  const rise = (p: number) => ({
+    opacity: p,
+    transform: `translateY(${(1 - p) * 26}px)`,
+    willChange: p > 0 && p < 1 ? ("transform, opacity" as const) : undefined,
+  });
 
   const events = visibleEvents();
   const venue = wedding.venue;
@@ -109,9 +116,9 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
   const Label = ({ children }: { children: string }) => (
     <div
       style={{
-        fontFamily: fontMain,
+        fontFamily: fontUi,
         fontWeight: 600,
-        fontSize: bn ? 34 : 36,
+        fontSize: bn ? 32 : 36,
         letterSpacing: bn ? "0.02em" : "0.2em",
         textTransform: bn ? "none" : "uppercase",
         color: GOLD_DEEP,
@@ -130,13 +137,13 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
     return (
       <div style={{ textAlign: "center", flex: 1, minWidth: 0 }}>
         <Label>{eventLabel[k]}</Label>
-        <div style={{ fontFamily: fontMain, fontWeight: 600, fontSize: bn ? 43 : 46, lineHeight: 1.2, color: SINDOOR, whiteSpace: "nowrap" }}>
+        <div style={{ fontFamily: fontMain, fontWeight: w(600), fontSize: bn ? 43 : 46, lineHeight: 1.2, color: SINDOOR, whiteSpace: "nowrap" }}>
           {d.day}
         </div>
         {bn && hasValue(ev.bengaliDate) && (
-          <div style={{ fontFamily: FONT_BN, fontWeight: 400, fontSize: 34, lineHeight: 1.35, color: GOLD_DEEP }}>{ev.bengaliDate}</div>
+          <div style={{ fontFamily: FONT_BN, fontWeight: w(400), fontSize: 34, lineHeight: 1.35, color: GOLD_DEEP }}>{ev.bengaliDate}</div>
         )}
-        <div style={{ fontFamily: fontMain, fontWeight: 400, fontSize: bn ? 38 : 42, lineHeight: 1.3, color: MUTED }}>{when}</div>
+        <div style={{ fontFamily: fontMain, fontWeight: w(400), fontSize: bn ? 38 : 42, lineHeight: 1.3, color: MUTED }}>{when}</div>
       </div>
     );
   };
@@ -153,9 +160,9 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
     background: SINDOOR,
     border: `5px solid ${GOLD}`,
     color: "#f8ecd2",
-    fontFamily: fontMain,
+    fontFamily: fontUi,
     fontWeight: 600,
-    fontSize: bn ? 56 : 58,
+    fontSize: bn ? 54 : 58,
     letterSpacing: bn ? "0.01em" : "0.06em",
     textDecoration: "none",
     boxShadow: "0 10px 0 rgba(48,37,31,.18)",
@@ -178,9 +185,16 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
       }}
     >
       <style>{CSS}</style>
-      <Img
-        src={url(IMAGES.grain)}
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", mixBlendMode: "multiply", opacity: 0.3, pointerEvents: "none" }}
+      <Img src={url(IMAGES.grainTile)} style={{ position: "absolute", width: 1, height: 1, opacity: 0 }} />
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          backgroundImage: `url("${url(IMAGES.grainTile)}")`,
+          backgroundSize: "256px 256px",
+          opacity: 0.3,
+          pointerEvents: "none",
+        }}
       />
 
       {/* ornamental border */}
@@ -233,7 +247,7 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
           style={{
             ...rise(heading),
             fontFamily: fontMain,
-            fontWeight: 600,
+            fontWeight: w(600),
             fontSize: bn ? 62 : 54,
             letterSpacing: bn ? "0.04em" : "0.2em",
             textTransform: bn ? "none" : "uppercase",
@@ -246,9 +260,9 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
         <div
           style={{
             ...rise(names),
-            fontFamily: fontMain,
+            fontFamily: fontNames,
             fontStyle: bn ? "normal" : "italic",
-            fontWeight: bn ? 600 : 500,
+            fontWeight: w(bn ? 600 : 500),
             fontSize: bn ? 132 : 156,
             lineHeight: 1.15,
             color: SINDOOR,
@@ -270,7 +284,7 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
             maxWidth: 740,
             fontFamily: fontMain,
             fontStyle: bn ? "normal" : "italic",
-            fontWeight: 400,
+            fontWeight: w(400),
             fontSize: bn ? 46 : 54,
             lineHeight: bn ? 1.6 : 1.3,
             color: INK,
@@ -293,18 +307,18 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
               <div style={{ textAlign: "center" }}>
                 <Label>{tx.venueLabel}</Label>
                 {hasValue(venueName) && (
-                  <div style={{ fontFamily: fontMain, fontWeight: 600, fontSize: bn ? 46 : 52, lineHeight: 1.2, color: INK }}>
+                  <div style={{ fontFamily: fontMain, fontWeight: w(600), fontSize: bn ? 46 : 52, lineHeight: 1.2, color: INK }}>
                     {venueName}
                     {hasValue(venueNote) && (
-                      <span style={{ fontWeight: 400, fontSize: bn ? 36 : 40, color: MUTED }}>{` (${venueNote})`}</span>
+                      <span style={{ fontWeight: w(400), fontSize: bn ? 36 : 40, color: MUTED }}>{` (${venueNote})`}</span>
                     )}
                   </div>
                 )}
                 {hasValue(address) && (
-                  <div style={{ fontFamily: fontMain, fontWeight: 500, fontSize: bn ? 38 : 40, lineHeight: 1.3, color: INK }}>{address}</div>
+                  <div style={{ fontFamily: fontMain, fontWeight: w(500), fontSize: bn ? 38 : 40, lineHeight: 1.3, color: INK }}>{address}</div>
                 )}
                 {hasValue(landmark) && (
-                  <div style={{ fontFamily: fontMain, fontWeight: 400, fontSize: bn ? 34 : 38, lineHeight: 1.35, color: MUTED }}>
+                  <div style={{ fontFamily: fontMain, fontWeight: w(400), fontSize: bn ? 34 : 38, lineHeight: 1.35, color: MUTED }}>
                     {`${tx.landmarkLabel}: ${landmark}`}
                   </div>
                 )}

@@ -1,5 +1,5 @@
 import type { SyntheticEvent } from "react";
-import { FONT_BN, FONT_EN } from "../fonts";
+import { FONT_BN_UI, FONT_EN } from "../fonts";
 import { useExperience } from "../experience";
 
 interface Props {
@@ -91,7 +91,7 @@ export const GuidedHotspot = ({
           background: "rgba(251,244,230,.96)",
           border: "3px solid #c49a52",
           color: "#781f2b",
-          fontFamily: lang === "bn" ? FONT_BN : FONT_EN,
+          fontFamily: lang === "bn" ? FONT_BN_UI : FONT_EN,
           fontWeight: 600,
           fontSize: lang === "bn" ? 40 : 44,
           whiteSpace: "nowrap",

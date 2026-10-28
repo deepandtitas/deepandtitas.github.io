@@ -32,7 +32,7 @@ inside a mobile-first React shell via `@remotion/player`, and ends on an interac
 4. **Asset URLs** go through `asset()` in `src/config/assets.ts` using the `assetBase` input prop, so the site works under
    a sub-path if one is ever needed (`BASE_PATH`). Production is the GitHub user site `https://deepandtitas.github.io/` at the root.
 5. **Never fabricate wedding details.** Date, time, venue name and address stay blank in `wedding.ts` until the family provides them;
-   blank fields are hidden (or shown as clearly marked placeholders in dev only). Never alter or round the map coordinates.
+   blank fields are hidden (or shown as clearly marked placeholders in dev only). The map button opens `wedding.mapUrl` exactly as given (the venue's Google Maps listing).
 6. **Character consistency.** Deep and Titas are drawn only by the shared rig in `src/remotion/components/WeddingCouple.tsx`.
 7. **Cultural respect.** Bengali sequence: শুভদৃষ্টি, then মালাবদল. Do not add rituals that are not clearly depicted correctly
    (no fire ritual or sindoor daan). When unsure, use a symbolic depiction.
@@ -42,3 +42,8 @@ inside a mobile-first React shell via `@remotion/player`, and ends on an interac
 11. Decorative composition layers must stay click-through (`pointer-events: none` on the composition root);
     only hotspot buttons and the map link opt back in. Guided-mode boundary checks use `>=` and run before scene updates,
     because the Player can skip frames on slow devices.
+12. **Performance rules.** Keep per-frame changes out of big static layers: things that change every frame live in their
+    own `<Layer>` (`will-change`), static parts are memoised (`MandapStructure`, `GardenPath`, figures), and nothing is
+    rendered while invisible. Don't reintroduce `mix-blend-mode`, SVG filters or `<svg>` images in the composition — bake art
+    to WebP (`npm run art`). Profile before changing: headless Chrome with `Emulation.setCPUThrottlingRate` ≈ 4 should stay ≈ 30 fps.
+13. Bengali fonts are single-weight (Tiro Bangla, Galada): use `bnWeight()` instead of asking for bold.

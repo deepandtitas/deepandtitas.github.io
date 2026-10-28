@@ -18,6 +18,7 @@ const layer = (x: number, scale = 1) => ({
   height: 1920,
   transform: `translateX(${x.toFixed(2)}px) scale(${scale})`,
   transformOrigin: "50% 100%",
+  willChange: "transform" as const,
 });
 
 export const GardenFar = ({ drift = 0, opacity = 1 }: Props) => {

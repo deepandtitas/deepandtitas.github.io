@@ -11,7 +11,7 @@ const COLORS = {
 } as const;
 
 const PETAL = "M0 -1C0.95 -0.7 0.9 0.5 0 1C-0.9 0.5 -0.95 -0.7 0 -1Z";
-const COUNT = 30;
+const COUNT = 24;
 
 interface Props {
   /** Global frame — petals are a pure function of it. */
@@ -26,12 +26,7 @@ export const FloatingPetals = ({ frame, intensity, kind = "mixed" }: Props) => {
   if (intensity <= 0.01) return null;
   const visible = Math.ceil(COUNT * Math.min(1, intensity));
   return (
-    <svg
-      width={1080}
-      height={1920}
-      viewBox="0 0 1080 1920"
-      style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
-    >
+    <g>
       {Array.from({ length: visible }, (_, i) => {
         const T = 420 + seeded(i + 1) * 360;
         const phase = seeded(i + 40) * T;
@@ -60,6 +55,6 @@ export const FloatingPetals = ({ frame, intensity, kind = "mixed" }: Props) => {
           </g>
         );
       })}
-    </svg>
+    </g>
   );
 };

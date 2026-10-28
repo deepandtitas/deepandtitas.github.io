@@ -10,11 +10,11 @@ export const asset = (path: string, base: string): string => {
 };
 
 export const IMAGES = {
-  paper: "images/paper.svg",
-  grain: "images/grain.svg",
-  gardenFar: "images/garden-far.svg",
-  gardenMid: "images/garden-mid.svg",
-  gardenNear: "images/garden-near.svg",
+  paper: "images/paper.webp",
+  grainTile: "images/grain-tile.webp",
+  gardenFar: "images/garden-far.webp",
+  gardenMid: "images/garden-mid.webp",
+  gardenNear: "images/garden-near.webp",
 } as const;
 
 export const AUDIO_PATH = "audio/soundtrack.mp3";

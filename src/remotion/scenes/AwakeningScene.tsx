@@ -80,6 +80,7 @@ export const AwakeningScene = () => {
         size={lang === "bn" ? 150 : 168}
         color={SINDOOR}
         italicEn
+        display
         style={{ top: lang === "bn" ? 356 : 340 }}
       />
       <RevealText

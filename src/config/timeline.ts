@@ -25,9 +25,9 @@ export const LAST_FRAME = DURATION - 1; // 1499 — the final, fully revealed in
  * Scenes whose end state is identical to the next scene's start state need no overlap.
  */
 export const SCENE_OVERLAP: Record<SceneId, number> = {
-  awakening: 90,
+  awakening: 72,
   meeting: 0,
-  wedding: 90,
+  wedding: 62,
   invitation: 0,
 };
 

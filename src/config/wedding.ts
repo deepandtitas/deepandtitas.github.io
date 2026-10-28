@@ -38,25 +38,19 @@ export const wedding = {
     },
     landmark: { bn: "টালা পোস্টঅফিস", en: "Tala Post Office" },
   },
-  /** Exact map pin. Never round or alter these values. */
-  mapCoordinates: {
-    latitude: 22.60760907969931,
-    longitude: 88.37628348848713,
-  },
+  /** The venue's Google Maps listing (resolves to "Sthapati, 15, Bidhan Sarani, Shyam Bazar, Kolkata 700002"). Use as given. */
+  mapUrl: "https://maps.app.goo.gl/BGgvu48u6NbyY9xN8?g_st=aw",
 } as const satisfies {
   groom: Bilingual;
   bride: Bilingual;
   events: Record<string, { date: string; bengaliDate: string; time: Bilingual }>;
   venue: Record<"name" | "note" | "address" | "landmark", Bilingual>;
-  mapCoordinates: { latitude: number; longitude: number };
+  mapUrl: string;
 };
 
 export type Wedding = typeof wedding;
 
-export const buildMapUrl = (c: { latitude: number; longitude: number }): string =>
-  `https://www.google.com/maps?q=${c.latitude},${c.longitude}`;
-
-export const mapUrl = buildMapUrl(wedding.mapCoordinates);
+export const mapUrl: string = wedding.mapUrl;
 
 export type EventKey = "wedding" | "reception";
 export const EVENT_KEYS: readonly EventKey[] = ["wedding", "reception"];

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMapUrl, hasValue, mapUrl, visibleEvents, wedding } from "../src/config/wedding";
+import { hasValue, mapUrl, visibleEvents, wedding } from "../src/config/wedding";
 
 describe("wedding config", () => {
   it("names the couple in both languages", () => {
@@ -7,14 +7,9 @@ describe("wedding config", () => {
     expect(wedding.bride).toEqual({ en: "Titas", bn: "তিতাস" });
   });
 
-  it("keeps the exact, unrounded map coordinates", () => {
-    expect(wedding.mapCoordinates.latitude).toBe(22.60760907969931);
-    expect(wedding.mapCoordinates.longitude).toBe(88.37628348848713);
-  });
-
-  it("builds the exact Google Maps URL", () => {
-    expect(mapUrl).toBe("https://www.google.com/maps?q=22.60760907969931,88.37628348848713");
-    expect(buildMapUrl({ latitude: 1.5, longitude: 2.25 })).toBe("https://www.google.com/maps?q=1.5,2.25");
+  it("opens the venue's Google Maps listing exactly as provided", () => {
+    expect(mapUrl).toBe("https://maps.app.goo.gl/BGgvu48u6NbyY9xN8?g_st=aw");
+    expect(new URL(mapUrl).protocol).toBe("https:");
   });
 
   it("uses the confirmed event dates (wedding 25 Nov 2026, reception 27 Nov 2026)", () => {

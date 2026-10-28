@@ -3,10 +3,10 @@ import { continueRender, delayRender } from "remotion";
 import "./fonts";
 
 const BN_FACES = [
-  '400 48px "Noto Serif Bengali"',
-  '500 48px "Noto Serif Bengali"',
-  '600 48px "Noto Serif Bengali"',
-  '700 48px "Noto Serif Bengali"',
+  '400 48px "Tiro Bangla"',
+  '400 48px "Galada"',
+  '500 48px "Hind Siliguri"',
+  '600 48px "Hind Siliguri"',
 ];
 const EN_FACES = [
   '400 48px "Cormorant Garamond"',

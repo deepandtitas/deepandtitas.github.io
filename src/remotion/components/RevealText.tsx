@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { FONT_BN, FONT_EN } from "../fonts";
+import { bnWeight, FONT_BN, FONT_BN_DISPLAY, FONT_EN } from "../fonts";
 import { easeInOut, progress, type Range } from "../lib/anim";
 import { useExperience } from "../experience";
 
@@ -15,6 +15,8 @@ interface Props {
   color: string;
   weight?: number;
   italicEn?: boolean;
+  /** Use the flowing display script for Bengali (the couple's names). */
+  display?: boolean;
   spacing?: string;
   style?: CSSProperties;
 }
@@ -30,6 +32,7 @@ export const RevealText = ({
   color,
   weight = 600,
   italicEn = false,
+  display = false,
   spacing = "0.02em",
   style,
 }: Props) => {
@@ -47,9 +50,9 @@ export const RevealText = ({
         left: 0,
         right: 0,
         textAlign: "center",
-        fontFamily: lang === "bn" ? FONT_BN : FONT_EN,
+        fontFamily: lang === "bn" ? (display ? FONT_BN_DISPLAY : FONT_BN) : FONT_EN,
         fontStyle: lang === "en" && italicEn ? "italic" : "normal",
-        fontWeight: weight,
+        fontWeight: bnWeight(lang, weight),
         fontSize: size,
         lineHeight: 1.25,
         letterSpacing: spacing,

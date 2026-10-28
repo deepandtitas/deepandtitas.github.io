@@ -34,7 +34,8 @@ npm run studio     # Remotion Studio, composition "DeepAndTitasWedding"
 | `npm test` | Unit tests (timeline, translations, wedding config, story state machine) |
 | `npm run typecheck` · `npm run lint` | TypeScript and ESLint |
 | `node scripts/stills.mjs 0 150 569 …` | Render chosen frames to `out/stills/` for visual review (`--lang=en` for English) |
-| `node scripts/generate-art.mjs` | Regenerate the painted garden / paper SVG layers in `public/images/` |
+| `npm run art` | Regenerate the painted garden / paper layers: `scripts/generate-art.mjs` writes SVG sources to `art/`, `scripts/bake-art.mjs` bakes them to WebP in `public/images/` |
+| `npm run og` | Regenerate the Open Graph / link-preview image `public/og-image.jpg` from the real final card |
 
 ---
 
@@ -51,15 +52,13 @@ Filled in from the printed reception invitation (the source of truth), with spel
 | Venue | স্থপতি / **Sthapati** (শম্ভু ঘোষের বাড়ি / House of Sambhu Ghosh) |
 | Address | `15, Raja Shew Box Bagala Lane, Kolkata-700002` · ১৫, রাজা শিউ বক্স বগলা লেন, কলকাতা-২ |
 | Landmark | Tala Post Office / টালা পোস্টঅফিস |
-| Map pin | 22.60760907969931, 88.37628348848713 |
+| Map | https://maps.app.goo.gl/BGgvu48u6NbyY9xN8?g_st=aw (Google Maps listing for Sthapati) |
 
 Dates are ISO strings rendered by `src/config/dates.ts` (Bengali digits, ordinals like ২৫শে, weekday). Every text field is
 `{ bn, en }`. Anything you leave blank is simply not shown — there are no placeholders anywhere.
 
-The **স্থান দেখুন / View Location** button opens
-`https://www.google.com/maps?q=22.60760907969931,88.37628348848713` in a new tab (`rel="noopener noreferrer"`).
-The coordinates are never rounded; a unit test guards the exact URL. The pin is in the Tala neighbourhood (about 260 m from
-Tala station), consistent with the card's landmark, but it should be confirmed against the actual venue gate.
+The **স্থান দেখুন / View Location** button opens `wedding.mapUrl` — the venue's Google Maps listing,
+`https://maps.app.goo.gl/BGgvu48u6NbyY9xN8?g_st=aw` — in a new tab (`rel="noopener noreferrer"`). A unit test guards the exact URL.
 
 ### 2. Wording — `src/config/translations.ts`
 
@@ -88,8 +87,8 @@ Deep and Titas are drawn in exactly one place so they stay identical in every sc
   Put images in `public/images/` and load them with Remotion's `<Img src={useAsset()("images/deep.png")} />`
   so they also work under a sub-path. Use the **same character art in every scene** — the scenes only call
   `<Groom/>` / `<Bride/>`, so nothing else needs to change.
-- **Garden / paper layers:** `public/images/*.svg` (listed in `src/config/assets.ts`). Replace the files with your own
-  1200×1920 (garden) or 1080×1920 (paper) images, or tweak and re-run `node scripts/generate-art.mjs`.
+- **Garden / paper layers:** `public/images/*.webp` (listed in `src/config/assets.ts`). Replace the files with your own
+  1200×1920 (garden) or 1080×1920 (paper) images, or tweak the generator and run `npm run art`.
 
 > The artwork here is original, procedurally drawn SVG. No real likenesses are used. If you have an illustrator,
 > the character rig and the garden layers are the pieces to replace.
@@ -138,7 +137,8 @@ src/
     state/    storyMachine.ts  (pure reducer — guided order, skip, replay; unit-tested)
     hooks/    usePlayerEvents · useStoryMachine · useReducedMotion
   styles/     tokens.css · global.css · experience.css
-public/       images/ (painted layers) · audio/ (soundtrack goes here)
+art/          SVG sources of the painted layers (baked to WebP by `npm run art`)
+public/       images/ (baked WebP layers) · audio/ (soundtrack) · og-image.jpg (link preview)
 ```
 
 - **Frame-driven animation.** Everything in `src/remotion/` derives from `useCurrentFrame()` with `interpolate()` /
@@ -153,6 +153,29 @@ public/       images/ (painted layers) · audio/ (soundtrack goes here)
   hotspot placed in composition space; taps cannot skip scenes.
 - **The invitation card is part of the composition**, so it is identical in the Player and in MP4 renders, scales
   with the frame, and stays interactive after playback ends (the Player never resets: `moveToBeginningWhenEnded={false}`).
+
+### Typography
+
+Bengali text uses **Tiro Bangla** (a refined serif with calligraphic contrast) for body copy and headings, **Galada**
+(a flowing script close to the lettering printed on the invitation) for the couple's names, and **Hind Siliguri** for small
+UI text such as buttons and labels. English uses **Cormorant Garamond**. All are self-hosted via `@fontsource` (no runtime
+network), and `font-synthesis: none` stops the browser faking a bold that a single-weight Bengali face does not have.
+Roles live in `src/remotion/fonts.ts`.
+
+### Performance
+
+The film is designed to hold ~30 fps on mid-range phones. Measured in headless Chrome with a 4× CPU slowdown it renders
+29–30 fps in every scene (an earlier build dropped to ~17 fps in the wedding scene). What makes the difference:
+
+- **Baked art.** The painted layers are pre-rendered WebP (≈330 KB total, was ≈1 MB of filter-heavy SVG that the browser
+  re-rasterised as it moved). The paper grain is a 256 px tile with normal blending, not a full-frame `mix-blend-mode`.
+- **Compositor layers.** Anything that moves every frame (parallax, petals, flames, people) lives in its own GPU layer
+  (`will-change`, see `components/Layer.tsx`), and static things are painted once: the mandap is split into structure / arch /
+  flames / glow, and the figures and path are memoised.
+- **No invisible work.** The invitation card is mounted only when it comes into view, scenes unmount as soon as the next
+  one fully covers them, and idle micro-animations that forced whole-figure repaints were removed.
+- **Lean loading.** One JS bundle (~340 KB gzip), 3 Bengali font files, and the 1 MB soundtrack is fetched when the
+  browser is idle rather than during load.
 
 ### Accessibility and responsiveness
 
@@ -173,6 +196,13 @@ npx remotion compositions src/remotion/index.ts     # → DeepAndTitasWedding 30
 ```
 
 ---
+
+## Link previews (Open Graph)
+
+`index.html` carries static Open Graph and Twitter-card tags (title, description, `og:image`, locale, canonical URL), and
+`public/og-image.jpg` is a 1200×630 preview showing the names, both dates and the real final card. Re-run `npm run og`
+after changing any wedding details. Messaging apps cache previews, so if one shows an old image, re-scrape the link with the
+platform's debugger (e.g. Facebook's Sharing Debugger).
 
 ## What can still be added
 

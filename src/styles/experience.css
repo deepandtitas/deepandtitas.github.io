@@ -159,6 +159,7 @@
 }
 
 .intro__title {
+  font-family: var(--font-bn-display);
   position: absolute;
   left: 0;
   right: 0;
@@ -172,6 +173,7 @@
 }
 
 .intro__names[lang="en"] .intro__title {
+  font-family: var(--font-en);
   font-style: italic;
   font-weight: 500;
   font-size: 15.5cqw;
@@ -179,6 +181,7 @@
 }
 
 .intro__subtitle {
+  font-family: var(--font-bn);
   position: absolute;
   left: 0;
   right: 0;
@@ -191,6 +194,7 @@
 }
 
 .intro__names[lang="en"] .intro__subtitle {
+  font-family: var(--font-en);
   font-style: italic;
   font-size: 5.2cqw;
   letter-spacing: 0.08em;
