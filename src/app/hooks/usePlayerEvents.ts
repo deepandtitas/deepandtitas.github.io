@@ -1,6 +1,6 @@
 import type { PlayerRef } from "@remotion/player";
 import { useEffect, useState, type MutableRefObject, type RefObject } from "react";
-import { sceneAt, sceneLastFrame, type SceneId } from "../../config/timeline";
+import { sceneAt, sceneLastFrame, type SceneId } from "../../story/timeline";
 import type { StoryAction, StoryState } from "../state/storyMachine";
 
 interface Options {

@@ -1,3 +1,4 @@
+
 :root {
   /* Palette */
   --sindoor-red: #781f2b;
@@ -22,3 +23,4 @@
   --touch: 44px;
   --ring: 0 0 0 3px var(--ivory), 0 0 0 6px var(--sindoor-red);
 }
+

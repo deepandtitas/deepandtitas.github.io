@@ -20,7 +20,7 @@ import {
   sceneAt,
   sceneDuration,
   sceneLastFrame,
-} from "../src/config/timeline";
+} from "../src/story/timeline";
 
 describe("timeline", () => {
   it("is a 1080×1920, 60 FPS, 3000-frame (50 s) composition authored in 30-per-second beats", () => {

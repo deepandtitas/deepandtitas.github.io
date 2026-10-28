@@ -1,9 +1,9 @@
 /**
  * Loads everything the story needs before the website starts: every webfont face, every baked image (fetched AND
- * decoded, so no layer ever pops in or flickers mid-story) and the soundtrack (so playback never stalls).
- * Progress is weighted by size. A missing or failing soundtrack is ignored — the story works without it.
+ * decoded, so nothing pops in mid-story) and the soundtrack. Progress is weighted by size. A missing or failing
+ * soundtrack is ignored: the story works without it.
  */
-import { artImage } from "../../remotion/lib/images";
+import { artImage } from "../../render/images";
 
 export interface LoadItem {
   id: string;
@@ -24,10 +24,7 @@ export const weightedProgress = (items: readonly LoadItem[], done: ReadonlyMap<s
   return got / total;
 };
 
-/**
- * Fetches and decodes through the composition's shared image cache, so the story's canvases draw these very images
- * (and the cache keeps them referenced, so the browser keeps them decoded).
- */
+/** Fetches and decodes through the renderer's shared image cache, so the canvas draws these very images. */
 const loadImage = (src: string): Promise<void> =>
   new Promise((resolve, reject) => {
     const img = artImage(src);
@@ -64,7 +61,7 @@ export interface PreloadOptions {
   timeoutMs?: number;
 }
 
-/** Loads all items (4 at a time for images), reporting overall progress. Resolves when done or on timeout. */
+/** Loads all items (6 at a time), reporting overall progress. Resolves when done or on timeout. */
 export const preloadAll = (items: readonly LoadItem[], onProgress: (p: number) => void, opts: PreloadOptions): Promise<void> => {
   const done = new Map<string, number>();
   const report = () => onProgress(weightedProgress(items, done));
@@ -92,7 +89,6 @@ export const preloadAll = (items: readonly LoadItem[], onProgress: (p: number) =
     );
   };
 
-  // a few at a time so the first images decode early instead of everything competing at once
   const queue = [...items];
   const worker = async () => {
     for (let it = queue.shift(); it; it = queue.shift()) await run(it);

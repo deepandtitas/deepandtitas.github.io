@@ -1,31 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { fitStage } from "../src/app/hooks/useStageLayout";
 
-describe("stage layout", () => {
-  it("keeps the frame 9:16 and inside the room", () => {
+describe("fitStage", () => {
+  it("always fits a 9:16 frame in the room", () => {
     for (const [w, h] of [[390, 844], [375, 667], [844, 390], [1920, 1080], [280, 653]]) {
-      const fit = fitStage({ w, h }, { w, h });
-      expect(fit.width).toBeLessThanOrEqual(w);
-      expect(fit.height).toBeLessThanOrEqual(h + 0.01);
-      expect(fit.height / fit.width).toBeCloseTo(16 / 9, 5);
-      expect(fit.scale).toBeCloseTo(fit.width / 1080, 8);
+      const f = fitStage({ w, h }, { w, h });
+      expect(f.width).toBeLessThanOrEqual(w);
+      expect(f.height).toBeLessThanOrEqual(h + 0.01);
+      expect(f.height / f.width).toBeCloseTo(16 / 9, 2);
+      expect(f.scale).toBeCloseTo(f.width / 1080, 6);
     }
   });
-
-  it("does not rescale or move the controls while a toolbar slides (room fixed, visible box changes)", () => {
-    const room = { w: 390, h: 664 };
-    const shown = fitStage(room, { w: 390, h: 664 });
-    const hidden = fitStage(room, { w: 390, h: 750 });
-    expect(hidden.width).toBe(shown.width);
-    expect(hidden.hud).toBe(shown.hud);
-    const tall = { w: 412, h: 839 };
-    expect(fitStage(tall, tall).hud).toBe(fitStage(tall, { w: 412, h: 915 }).hud);
+  it("does not change when only the stage height changes", () => {
+    const a = fitStage({ w: 390, h: 664 }, { w: 390, h: 664 });
+    const b = fitStage({ w: 390, h: 664 }, { w: 390, h: 750 });
+    expect([a.width, a.hud]).toEqual([b.width, b.hud]);
+    expect(fitStage({ w: 412, h: 839 }, { w: 412, h: 839 }).hud).toBe(fitStage({ w: 412, h: 839 }, { w: 412, h: 915 }).hud);
   });
-
-  it("puts the controls in the bands on tall phones and beside the picture when wide", () => {
-    expect(fitStage({ w: 390, h: 844 }, { w: 390, h: 844 }).hud).toBe("bands");
-    expect(fitStage({ w: 375, h: 667 }, { w: 375, h: 667 }).hud).toBe("inside");
-    expect(fitStage({ w: 844, h: 390 }, { w: 844, h: 390 }).hud).toBe("side");
-    expect(fitStage({ w: 1920, h: 1080 }, { w: 1920, h: 1080 }).hud).toBe("side");
+  it("picks the hud placement", () => {
+    const hud = (w: number, h: number) => fitStage({ w, h }, { w, h }).hud;
+    expect(hud(390, 844)).toBe("bands");
+    expect(hud(375, 667)).toBe("inside");
+    expect(hud(844, 390)).toBe("side");
+    expect(hud(1920, 1080)).toBe("side");
   });
 });

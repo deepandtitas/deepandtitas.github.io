@@ -1,8 +1,3 @@
-// Plays the built site in headless Chrome as a throttled phone and reports frame rate per scene.
-// Usage: npm run profile            (builds first)
-//        node scripts/profile.mjs [--throttle=4] [--no-build] [--width=390 --height=844 --dpr=3]
-// Target: ≈60 fps in every scene at 2× CPU throttling, ≤ ~70 layers per scene and no layer churn. Headless Chrome may composite in software, so treat the
-// numbers as a relative benchmark between changes, not as an absolute device measurement.
 import { chromium } from "playwright-core";
 import { execSync } from "node:child_process";
 import { createServer } from "node:http";
@@ -70,6 +65,38 @@ cdp.on("LayerTree.layerTreeDidChange", (e) => {
   if (e.layers) layerCount = e.layers.filter((l) => l.drawsContent && !l.invisible).length;
 });
 await cdp.send("LayerTree.enable");
+// GPU tile memory: a Chrome memory-infra dump (cc/tile_memory of the page's renderer process), taken every ~2 s
+const memEvents = [];
+cdp.on("Tracing.dataCollected", (e) => memEvents.push(...e.value));
+const tracingDone = new Promise((r) => cdp.once("Tracing.tracingComplete", r));
+await cdp.send("Tracing.start", { traceConfig: { includedCategories: ["-*", "disabled-by-default-memory-infra"], memoryDumpConfig: { triggers: [] } }, transferMode: "ReportEvents" });
+const tileSamples = [];
+let lastDump = 0;
+const sampleTiles = async (frame) => {
+  const before = memEvents.length;
+  try {
+    await cdp.send("Tracing.requestMemoryDump", { levelOfDetail: "light" });
+  } catch {
+    return;
+  }
+  const mb = tileMbOf(memEvents.slice(before));
+  if (mb !== null) tileSamples.push({ frame, mb });
+};
+// sums the cc/tile_memory allocators of every process in the dump; the renderer is the one that has them
+const tileMbOf = (events) => {
+  let best = null;
+  for (const ev of events) {
+    const allocators = ev?.args?.dumps?.allocators;
+    if (!allocators) continue;
+    const entries = Object.entries(allocators).filter(([k]) => k === "cc/tile_memory" || k.startsWith("cc/tile_memory/"));
+    if (!entries.length) continue;
+    const size = (v) => parseInt(v?.attrs?.size?.value ?? "0", 16) || 0;
+    const children = entries.filter(([k]) => k !== "cc/tile_memory");
+    const total = children.length ? children.reduce((n, [, v]) => n + size(v), 0) : size(entries[0][1]);
+    best = Math.max(best ?? 0, total / 1048576);
+  }
+  return best;
+};
 await page.tap(".cover .btn--primary");
 const started = Date.now();
 // sample main-thread time (script / style / layout) every half second, attributed to the scene being played
@@ -81,6 +108,10 @@ for (;;) {
   ]);
   const m = Object.fromEntries(metrics.map((x) => [x.name, x.value]));
   samples.push({ t: Date.now(), frame: state[0], layers: layerCount, script: m.ScriptDuration, style: m.RecalcStyleDuration, layout: m.LayoutDuration, task: m.TaskDuration });
+  if (Date.now() - lastDump > 2000) {
+    lastDump = Date.now();
+    await sampleTiles(state[0]);
+  }
   if (state[1] === "finished" || Date.now() - started > 180000) break;
   await new Promise((r) => setTimeout(r, 500));
 }
@@ -89,11 +120,13 @@ const log = await page.evaluate(() => {
   window.__frameDone = true;
   return window.__frameLog;
 });
+await cdp.send("Tracing.end").catch(() => undefined);
+await Promise.race([tracingDone, new Promise((r) => setTimeout(r, 5000))]);
 await browser.close();
 server.close();
 
 // scene boundaries in frames, read from the timeline (beats × frames-per-beat) so this script never drifts from it
-const timeline = readFileSync(path.join(root, "src", "config", "timeline.ts"), "utf8");
+const timeline = readFileSync(path.join(root, "src", "story", "timeline.ts"), "utf8");
 const fpb = Number(/export const FPS = (\d+)/.exec(timeline)[1]) / Number(/export const BEAT_FPS = (\d+)/.exec(timeline)[1]);
 const SCENES = Object.fromEntries(
   [...timeline.matchAll(/(\w+): \{ start: (\d+), end: (\d+) \}/g)].map(([, id, a, b]) => [id, { start: +a * fpb, end: +b * fpb }]),
@@ -126,7 +159,11 @@ for (const [id, s] of Object.entries(SCENES)) {
   const settled = ss.filter((x) => x.frame >= s.start + 60);
   const churn = settled.filter((x, i) => i > 0 && x.layers !== settled[i - 1].layers).length;
   const maxLayers = Math.max(0, ...ss.map((x) => x.layers));
-  rows.push({ scene: id, fps: +(1000 / avg).toFixed(1), "p95 ms": +p95.toFixed(1), "long frames": dropped, "player frames": advanced, expected: s.end - s.start, script: share("script"), style: share("style"), layout: share("layout"), busy: share("task"), layers: maxLayers, "layer churn": churn });
+  const tiles = tileSamples.filter((x) => x.frame >= s.start && x.frame < s.end).map((x) => x.mb);
+  const tileMb = tiles.length ? +Math.max(...tiles).toFixed(1) : "-";
+  rows.push({ scene: id, fps: +(1000 / avg).toFixed(1), "p95 ms": +p95.toFixed(1), "long frames": dropped, "player frames": advanced, expected: s.end - s.start, script: share("script"), style: share("style"), layout: share("layout"), busy: share("task"), layers: maxLayers, "layer churn": churn, "tile MB": tileMb });
 }
 console.log(`\n${width}×${height} @${dpr}x, CPU throttle ${throttle}×, wall ${wall.toFixed(1)} s (story is 50 s)`);
 console.table(rows);
+console.log("target: ≈60 fps, tile memory ≤ 80 MB, no layer churn");
+

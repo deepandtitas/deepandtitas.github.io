@@ -1,13 +1,13 @@
 import type { SyntheticEvent } from "react";
-import type { SceneId } from "../config/timeline";
-import type { Lang } from "../config/translations";
+import type { Lang } from "../content/translations";
+import type { HotspotAction } from "../render/overlay";
 
 export interface GuidedProps {
   /** true while the guest is exploring in guided mode (a lotus bud is visible from the first frame). */
   enabled: boolean;
   /** The scene whose start the guest can trigger right now (hotspot is shown), or null. */
-  awaiting: SceneId | null;
-  onActivate?: (target: SceneId, event: SyntheticEvent) => void;
+  awaiting: HotspotAction | null;
+  onActivate?: (target: HotspotAction, event: SyntheticEvent) => void;
 }
 
 /**
@@ -21,9 +21,11 @@ export type WeddingProps = {
   /** URL of the soundtrack, or null for a silent experience. */
   audioSrc: string | null;
   reducedMotion: boolean;
-  /** true in the website (real links/hotspots); false for video renders. */
+  /** true in the website (real link + hotspots); false for video renders (which also wait for every image). */
   interactive: boolean;
   guided: GuidedProps;
+  /** Backing-store pixels per composition pixel of the picture canvas (default 1). */
+  canvasScale?: number;
 };
 
 export const defaultWeddingProps: WeddingProps = {

@@ -1,5 +1,5 @@
 import type { SyntheticEvent } from "react";
-import { t, type Lang } from "../../config/translations";
+import { t, type Lang } from "../../content/translations";
 import type { StoryPhase } from "../state/storyMachine";
 
 interface Props {
@@ -115,3 +115,4 @@ export const StoryControls = ({
     </div>
   );
 };
+

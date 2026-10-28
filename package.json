@@ -16,6 +16,7 @@
     "still": "remotion still src/remotion/index.ts DeepAndTitasWedding out/invitation.png --frame=2999",
     "stills": "node scripts/stills.mjs 0 300 478 840 1138 1400 1540 1750 1960 2098 2200 2999",
     "profile": "node scripts/profile.mjs",
+    "phone": "node scripts/phone.mjs",
     "art": "node scripts/generate-art.mjs && node scripts/bake-art.mjs",
     "og": "node scripts/og-image.mjs"
   },
@@ -31,12 +32,14 @@
   "devDependencies": {
     "@eslint/js": "^9.39.0",
     "@remotion/cli": "4.0.539",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "eslint": "^9.39.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.0.0",
+    "jsdom": "^26.1.0",
     "playwright-core": "^1.64.1",
     "typescript": "^5.9.0",
     "typescript-eslint": "^8.72.1",

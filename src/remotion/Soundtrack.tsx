@@ -1,7 +1,6 @@
-import { Html5Audio } from "remotion";
-import { SCENE_BEATS } from "../config/timeline";
-import { keyframes } from "./lib/anim";
-import { useBeat } from "./lib/time";
+import { Html5Audio, useCurrentFrame } from "remotion";
+import { keyframes } from "../story/anim";
+import { FRAMES_PER_BEAT, SCENE_BEATS } from "../story/timeline";
 
 const W = SCENE_BEATS.wedding;
 const END = SCENE_BEATS.invitation.end;
@@ -18,12 +17,11 @@ export const soundtrackVolume = (beat: number): number =>
   );
 
 /**
- * Renders nothing unless a soundtrack URL was provided, so a missing file never breaks playback.
- * A native <audio> element (decoded by the browser, off the main thread) rather than a JS decoder: the story's
- * animation keeps the main thread to itself on phones.
+ * Video renders only: renders nothing unless a soundtrack URL was provided, so a missing file never breaks a render.
+ * The website plays the track from the shell with a plain audio element.
  */
 export const Soundtrack = ({ src }: { src: string | null }) => {
-  const beat = useBeat();
+  const beat = useCurrentFrame() / FRAMES_PER_BEAT;
   if (!src) return null;
   return <Html5Audio src={src} volume={soundtrackVolume(beat)} />;
 };

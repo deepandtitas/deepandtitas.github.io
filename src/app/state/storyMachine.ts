@@ -1,4 +1,5 @@
-import { nextScene, type SceneId } from "../../config/timeline";
+
+import { nextScene, type SceneId } from "../../story/timeline";
 
 /**
  * Website-level story state, kept separate from frame-driven animation state.
@@ -72,3 +73,4 @@ export const storyReducer = (state: StoryState, action: StoryAction): StoryState
       return initialStoryState;
   }
 };
+

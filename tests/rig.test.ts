@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blinkAt, pendulum, placeArm, poseTarget, restArm, solveArm, solveFigure } from "../src/remotion/rig/motion";
+import { blinkAt, pendulum, placeArm, poseTarget, restArm, solveArm, solveFigure } from "../src/story/rig";
 
 const dist = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
 

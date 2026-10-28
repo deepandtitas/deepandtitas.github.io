@@ -1,7 +1,8 @@
 import { useEffect } from "react";
-import { asset, AUDIO_PATH } from "../../config/assets";
-import { ART, type ArtName } from "../../remotion/art-manifest";
-import { FONT_FACES, FONT_SAMPLE } from "../../remotion/FontGate";
+import { ART, type ArtName } from "../../art/manifest";
+import { asset, AUDIO_PATH } from "../../content/assets";
+import { ALL_ART } from "../../scene/frame";
+import { FONT_FACES, FONT_SAMPLE } from "../lib/fontFaces";
 import { preloadAll, type LoadItem } from "../loader/preload";
 
 const HAS_AUDIO = typeof __HAS_AUDIO__ !== "undefined" && __HAS_AUDIO__;
@@ -9,16 +10,16 @@ const HAS_AUDIO = typeof __HAS_AUDIO__ !== "undefined" && __HAS_AUDIO__;
 const MIN_MS = 900;
 const FADE_MS = 650;
 
-/** Everything the story needs, weighted by size. */
-export const loadList = (base: string, hasAudio: boolean): LoadItem[] => [
+/** Everything the story needs (fonts, every image any frame can draw, the soundtrack), weighted by size. */
+export const loadList = (base: string, hasAudio: boolean, art: readonly ArtName[] = ALL_ART): LoadItem[] => [
   ...FONT_FACES.map((f, i) => ({ id: `font-${i}`, kind: "font" as const, src: f, weight: 45_000 })),
-  ...(Object.keys(ART) as ArtName[]).map((n) => ({ id: n, kind: "image" as const, src: asset(ART[n].src, base), weight: ART[n].bytes })),
-  ...(hasAudio ? [{ id: "audio", kind: "audio" as const, src: asset(AUDIO_PATH, base), weight: 1_000_000, optional: true }] : []),
+  ...art.map((n) => ({ id: n, kind: "image" as const, src: asset(base, ART[n].src), weight: ART[n].bytes })),
+  ...(hasAudio ? [{ id: "audio", kind: "audio" as const, src: asset(base, AUDIO_PATH), weight: 1_000_000, optional: true }] : []),
 ];
 
 /**
  * Drives the boot screen that index.html paints before any script runs (#boot): it loads every asset, shows real
- * progress, then fades away and hands over to the story. It updates the DOM directly — no React re-render per tick.
+ * progress, then fades away and hands over to the story. It updates the DOM directly, with no React re-render per tick.
  */
 export const Loader = ({ onReady }: { onReady: () => void }) => {
   useEffect(() => {
@@ -29,7 +30,6 @@ export const Loader = ({ onReady }: { onReady: () => void }) => {
     let shown = 0;
     let cancelled = false;
     const set = (p: number) => {
-      // never move backwards; ease the number so it reads as continuous
       shown = Math.max(shown, p);
       if (bar) bar.style.transform = `scaleX(${shown.toFixed(4)})`;
       if (pct) pct.textContent = `${Math.round(shown * 100)}%`;

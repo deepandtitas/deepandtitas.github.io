@@ -1,8 +1,8 @@
 import { Player, type PlayerRef } from "@remotion/player";
 import { useCallback, useEffect, useMemo, useRef, useState, type SyntheticEvent } from "react";
-import { asset, AUDIO_PATH } from "../../config/assets";
-import { COVER_FRAME, DURATION, FPS, HEIGHT, LAST_FRAME, WIDTH, type SceneId } from "../../config/timeline";
-import { t, type Lang } from "../../config/translations";
+import { asset, AUDIO_PATH } from "../../content/assets";
+import { COVER_FRAME, DURATION, FPS, HEIGHT, LAST_FRAME, WIDTH, type SceneId } from "../../story/timeline";
+import { t, type Lang } from "../../content/translations";
 import { WeddingComposition } from "../../remotion/WeddingComposition";
 import type { WeddingProps } from "../../remotion/props";
 import { usePlayerEvents } from "../hooks/usePlayerEvents";
@@ -39,7 +39,7 @@ export const ExperienceShell = ({ lang, onLangChange, reducedMotion }: Props) =>
   const copiedTimer = useRef<number | undefined>(undefined);
 
   const base = import.meta.env.BASE_URL;
-  const audioSrc = HAS_AUDIO ? asset(AUDIO_PATH, base) : null;
+  const audioSrc = HAS_AUDIO ? asset(base, AUDIO_PATH) : null;
   const setSoundMuted = useSoundtrack(playerRef, audioSrc);
 
   useEffect(() => {

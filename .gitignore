@@ -5,3 +5,6 @@ out
 .DS_Store
 *.tsbuildinfo
 /art/
+
+# reference stills of the old build (regenerate from the old checkout with scripts/stills.mjs)
+/remake/SPEC/reference/

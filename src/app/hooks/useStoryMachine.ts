@@ -1,3 +1,4 @@
+
 import { useCallback, useRef, useState } from "react";
 import { initialStoryState, storyReducer, type StoryAction, type StoryState } from "../state/storyMachine";
 
@@ -18,3 +19,4 @@ export const useStoryMachine = () => {
 
   return { state, stateRef: ref, send };
 };
+

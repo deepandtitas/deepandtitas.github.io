@@ -1,7 +1,3 @@
-// Generates the static Open Graph / Twitter preview image (public/og-image.jpg, 1200×630) from the real final card.
-// Usage: node scripts/og-image.mjs
-// It renders the last frame (2999) of the composition (the finished invitation) with Remotion, then lays it out next to the names and
-// dates in headless Chrome using the same self-hosted fonts as the site.
 import { bundle } from "@remotion/bundler";
 import { renderStill, selectComposition } from "@remotion/renderer";
 import { chromium } from "playwright-core";
@@ -33,7 +29,7 @@ const html = `<!doctype html><meta charset="utf-8">
 <style>
   *{box-sizing:border-box;margin:0}
   body{width:1200px;height:630px;overflow:hidden;position:relative;background:#f5ebdd;color:#30251f;font-family:"Anek Bangla Variable",serif}
-  .paper{position:absolute;inset:0;background:url("${pathToFileURL(path.join(root, "public/images/paper.webp")).href}") center/cover}
+  .paper{position:absolute;inset:0;background:url("${pathToFileURL(path.join(root, "public/art/paper.webp")).href}") center/cover}
   .frame{position:absolute;inset:22px;border:2px solid #c49a52;border-radius:6px}
   .frame::after{content:"";position:absolute;inset:8px;border:1px solid rgba(120,31,43,.55);border-radius:3px}
   .panel{position:absolute;right:0;top:0;bottom:0;width:440px;background:radial-gradient(circle at 50% 30%,#62262d 0%,#3b1b1c 60%,#26110f 100%)}

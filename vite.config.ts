@@ -15,7 +15,7 @@ export default defineConfig({
     __HAS_AUDIO__: JSON.stringify(existsSync(soundtrack)),
   },
   test: {
-    include: ["tests/**/*.test.ts"],
+    include: ["tests/**/*.test.{ts,tsx}"],
     environment: "node",
   },
 });

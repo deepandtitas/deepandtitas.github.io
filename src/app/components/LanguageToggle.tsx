@@ -1,4 +1,4 @@
-import { t, type Lang } from "../../config/translations";
+import { t, type Lang } from "../../content/translations";
 
 interface Props {
   lang: Lang;
@@ -24,3 +24,4 @@ export const LanguageToggle = ({ lang, onChange }: Props) => (
     ))}
   </div>
 );
+

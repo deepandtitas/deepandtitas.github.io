@@ -8,19 +8,7 @@ import "@fontsource/cormorant-garamond/latin-400-italic.css";
 import "@fontsource/cormorant-garamond/latin-500.css";
 import "@fontsource/cormorant-garamond/latin-600.css";
 
-export const FONT_BN = '"Anek Bangla Variable", "Noto Sans Bengali", sans-serif';
-export const FONT_BN_DISPLAY = '"Galada", "Anek Bangla Variable", serif';
-export const FONT_BN_UI = FONT_BN;
-export const FONT_EN = '"Cormorant Garamond", "Times New Roman", serif';
+export { BN_PAD, DISPLAY_WEIGHT, FONT_BN, FONT_BN_DISPLAY, FONT_BN_UI, FONT_EN } from "../render/fontStacks";
 
 /** Anek Bangla has real weights (100–800); English uses the weight asked for. */
 export const bnWeight = (_lang: "bn" | "en", weight: number): number => weight;
-
-/** Galada has a single (regular) weight: asking for bold would be synthesised and ugly. */
-export const DISPLAY_WEIGHT = 400;
-
-/**
- * Bengali vowel signs (ি ী ু ৃ) and Galada's loops reach well outside the line box. Text boxes that clip or
- * mask (reveals, buttons) need this much padding above and below so no glyph is ever cut.
- */
-export const BN_PAD = "0.32em";

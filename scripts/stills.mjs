@@ -1,6 +1,3 @@
-// Dev helper: render a set of stills to out/stills for visual review.
-// Usage: node scripts/stills.mjs 0 300 478 ...   [--lang=en] [--dir=out/stills] [--props='{"reducedMotion":true}']
-// Frames are 60 FPS frames (beat × 2). Key frames: 0 300 478 840 1138 1640 1920 2098 2200 2999.
 import { bundle } from "@remotion/bundler";
 import { renderStill, selectComposition } from "@remotion/renderer";
 import { mkdirSync } from "node:fs";

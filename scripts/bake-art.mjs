@@ -1,5 +1,5 @@
-// Bakes the generated SVG art (art/*.svg, listed in art/list.json) into trimmed WebP files in public/images/ and writes
-// src/remotion/art-manifest.ts: where each image's visible pixels sit in its design coordinates.
+// Bakes the generated SVG art (art/*.svg, listed in art/list.json) into trimmed WebP files in public/art/ and writes
+// src/art/manifest.ts: where each image's visible pixels sit in its design coordinates.
 //
 // Why: phones decode a WebP once and composite it on the GPU; SVG filters and big vector scenes would be re-rasterised
 // on every change. Trimming transparent margins keeps GPU texture memory (and flicker on low-memory phones) down.
@@ -14,10 +14,12 @@ import { fileURLToPath } from "node:url";
 import { findChrome } from "./chrome.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const artDir = path.join(root, "art");
-const outDir = path.join(root, "public", "images");
-const manifestFile = path.join(root, "src", "remotion", "art-manifest.ts");
+const artDir = path.join(root, "out", "art-src");
+const outDir = path.join(root, "public", "art");
+const manifestFile = path.join(root, "src", "art", "manifest.ts");
 mkdirSync(outDir, { recursive: true });
+mkdirSync(path.dirname(manifestFile), { recursive: true });
+mkdirSync(path.dirname(manifestFile), { recursive: true });
 
 const list = JSON.parse(readFileSync(path.join(artDir, "list.json"), "utf8"));
 
@@ -41,7 +43,7 @@ await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const origin = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ executablePath: findChrome(root), headless: true });
 
-const SUBDIR = { characters: "rig", sprites: "sprites", mandap: "mandap", garden: "" };
+const SUBDIR = {};
 
 /** Rasterise one SVG, trim fully transparent margins, encode WebP. */
 const bake = async (page, p) => {
@@ -97,7 +99,7 @@ const bake = async (page, p) => {
   const buf = Buffer.from(b64, "base64");
   const sub = SUBDIR[p.group] ?? "";
   mkdirSync(path.join(outDir, sub), { recursive: true });
-  const rel = path.posix.join("images", sub, `${p.name}.webp`);
+  const rel = path.posix.join("art", sub, `${p.name}.webp`);
   writeFileSync(path.join(root, "public", rel), buf);
   const r = (n) => Math.round(n * 100) / 100;
   console.log(`${rel.padEnd(42)} ${(buf.length / 1024).toFixed(0).padStart(5)} KB  ${rect.w}×${rect.h}`);

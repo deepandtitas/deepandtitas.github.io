@@ -1,16 +1,15 @@
 import type { PlayerRef } from "@remotion/player";
 import { useCallback, useEffect, useRef, type RefObject } from "react";
-import { FPS, framesToBeats } from "../../config/timeline";
-import { soundtrackVolume } from "../../remotion/Soundtrack";
+import { FPS, framesToBeats } from "../../story/timeline";
+import { soundtrackVolume } from "../lib/soundtrackVolume";
 
 /** Re-sync the music only when it has drifted this far from the story (seeks, stalls), never every frame. */
 const MAX_DRIFT_S = 0.35;
 
 /**
- * The website plays the soundtrack with a plain <audio> element outside the Remotion Player: the browser decodes and
- * mixes it off the main thread, so the animation keeps the main thread to itself on phones. It follows the Player
- * (play, pause, seek) and the same volume envelope as video renders. Sound starts only after a guest gesture; a
- * missing or failing file is silently ignored.
+ * The website plays the soundtrack with a plain <audio> element outside the Player: the browser decodes and mixes it
+ * off the main thread. It follows the Player (play, pause, seek) and the volume envelope. Sound starts only after a
+ * guest gesture; a missing or failing file is silently ignored.
  */
 export const useSoundtrack = (playerRef: RefObject<PlayerRef | null>, src: string | null) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -49,18 +48,17 @@ export const useSoundtrack = (playerRef: RefObject<PlayerRef | null>, src: strin
     };
     const onPause = () => audioRef.current?.pause();
     const onFrame = (e: { detail: { frame: number } }) => sync(e.detail.frame);
-    const onSeek = (e: { detail: { frame: number } }) => sync(e.detail.frame);
     player.addEventListener("play", onPlay);
     player.addEventListener("pause", onPause);
     player.addEventListener("ended", onPause);
     player.addEventListener("frameupdate", onFrame);
-    player.addEventListener("seeked", onSeek);
+    player.addEventListener("seeked", onFrame);
     return () => {
       player.removeEventListener("play", onPlay);
       player.removeEventListener("pause", onPause);
       player.removeEventListener("ended", onPause);
       player.removeEventListener("frameupdate", onFrame);
-      player.removeEventListener("seeked", onSeek);
+      player.removeEventListener("seeked", onFrame);
     };
   }, [playerRef]);
 

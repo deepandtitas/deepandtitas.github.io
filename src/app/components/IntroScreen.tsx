@@ -1,6 +1,7 @@
-import { formatDate } from "../../config/dates";
-import { otherLang, t, type Lang } from "../../config/translations";
-import { wedding } from "../../config/wedding";
+
+import { formatDate } from "../../content/dates";
+import { otherLang, t, type Lang } from "../../content/translations";
+import { wedding } from "../../content/wedding";
 
 interface Props {
   lang: Lang;
@@ -101,3 +102,4 @@ export const IntroScreen = ({ lang, onWatch, onExplore, onSkip }: Props) => {
     </section>
   );
 };
+

@@ -1,116 +1,53 @@
 import { describe, expect, it } from "vitest";
-import { SCENE_ORDER } from "../src/config/timeline";
-import {
-  initialStoryState,
-  storyReducer,
-  type StoryAction,
-  type StoryState,
-} from "../src/app/state/storyMachine";
+import { initialStoryState, storyReducer, type StoryAction, type StoryState } from "../src/app/state/storyMachine";
 
-const run = (actions: StoryAction[], from: StoryState = initialStoryState) =>
-  actions.reduce(storyReducer, from);
+const run = (actions: StoryAction[], from: StoryState = initialStoryState) => actions.reduce(storyReducer, from);
 
-describe("storyMachine", () => {
-  it("starts on the intro screen", () => {
-    expect(initialStoryState.phase).toBe("intro");
-    expect(initialStoryState.mode).toBeNull();
+describe("storyReducer", () => {
+  it("starts on the cover", () => {
+    expect(initialStoryState).toEqual({ phase: "intro", mode: null, step: "awakening", awaiting: null });
   });
 
-  it("cinematic: plays straight through and ends on the invitation", () => {
-    const playing = run([{ type: "START_CINEMATIC" }]);
-    expect(playing).toMatchObject({ phase: "playing", mode: "cinematic", step: "awakening" });
-    const scenes = run([{ type: "SCENE", scene: "meeting" }, { type: "SCENE", scene: "wedding" }], playing);
-    expect(scenes.step).toBe("wedding");
-    const done = run([{ type: "ENDED" }], scenes);
-    expect(done).toMatchObject({ phase: "finished", step: "invitation" });
+  it("cinematic follows scenes and ends finished", () => {
+    let s = run([{ type: "START_CINEMATIC" }]);
+    expect(s).toEqual({ phase: "playing", mode: "cinematic", step: "awakening", awaiting: null });
+    s = run([{ type: "SCENE", scene: "meeting" }, { type: "SCENE", scene: "wedding" }], s);
+    expect(s.step).toBe("wedding");
+    expect(run([{ type: "ENDED" }], s)).toEqual({ phase: "finished", mode: "cinematic", step: "invitation", awaiting: null });
+    expect(storyReducer(s, { type: "BOUNDARY", scene: "wedding" })).toBe(s);
   });
 
-  it("cinematic never pauses at scene boundaries", () => {
-    const playing = run([{ type: "START_CINEMATIC" }]);
-    expect(storyReducer(playing, { type: "BOUNDARY", scene: "awakening" })).toBe(playing);
-  });
-
-  it("guided: advances lotus → path → mandap → ornament in order", () => {
+  it("guided walks lotus, path, mandap, ornament", () => {
     let s = run([{ type: "START_GUIDED" }]);
-    expect(s).toMatchObject({ phase: "awaiting", awaiting: "awakening" });
-
-    const seen: string[] = [];
-    for (const scene of SCENE_ORDER) {
-      expect(s.awaiting).toBe(scene);
+    expect(s).toEqual({ phase: "awaiting", mode: "guided", step: "awakening", awaiting: "awakening" });
+    const order = ["awakening", "meeting", "wedding", "invitation"] as const;
+    order.forEach((scene, i) => {
       s = storyReducer(s, { type: "ACTIVATE", target: scene });
-      expect(s).toMatchObject({ phase: "playing", step: scene, awaiting: null });
-      seen.push(scene);
+      expect(s).toEqual({ phase: "playing", mode: "guided", step: scene, awaiting: null });
       s = storyReducer(s, { type: "BOUNDARY", scene });
-    }
-    expect(seen).toEqual([...SCENE_ORDER]);
-    expect(s.phase).toBe("finished"); // after the final scene's boundary there is nothing left to offer
+      if (i < 3) expect(s).toMatchObject({ phase: "awaiting", awaiting: order[i + 1] });
+      else expect(s).toMatchObject({ phase: "finished", awaiting: null });
+    });
   });
 
-  it("guided: pauses at each boundary and offers exactly the next scene", () => {
-    let s = run([{ type: "START_GUIDED" }, { type: "ACTIVATE", target: "awakening" }]);
-    s = storyReducer(s, { type: "BOUNDARY", scene: "awakening" });
-    expect(s).toMatchObject({ phase: "awaiting", awaiting: "meeting" });
-    s = run([{ type: "ACTIVATE", target: "meeting" }, { type: "BOUNDARY", scene: "meeting" }], s);
-    expect(s).toMatchObject({ phase: "awaiting", awaiting: "wedding" });
-    s = run([{ type: "ACTIVATE", target: "wedding" }, { type: "BOUNDARY", scene: "wedding" }], s);
-    expect(s).toMatchObject({ phase: "awaiting", awaiting: "invitation" });
-  });
-
-  it("guided: taps cannot skip ahead or repeat", () => {
+  it("taps cannot skip ahead or repeat", () => {
     const s = run([{ type: "START_GUIDED" }]);
-    // trying to jump straight to the wedding or invitation is ignored
     expect(storyReducer(s, { type: "ACTIVATE", target: "wedding" })).toBe(s);
     expect(storyReducer(s, { type: "ACTIVATE", target: "invitation" })).toBe(s);
-    // while a scene is playing, further taps do nothing
     const playing = storyReducer(s, { type: "ACTIVATE", target: "awakening" });
     expect(storyReducer(playing, { type: "ACTIVATE", target: "awakening" })).toBe(playing);
-    expect(storyReducer(playing, { type: "ACTIVATE", target: "meeting" })).toBe(playing);
-  });
-
-  it("guided: a stale boundary for a different scene is ignored", () => {
-    const playing = run([{ type: "START_GUIDED" }, { type: "ACTIVATE", target: "awakening" }]);
     expect(storyReducer(playing, { type: "BOUNDARY", scene: "meeting" })).toBe(playing);
-  });
-
-  it("skip goes straight to the finished invitation from any phase", () => {
-    for (const from of [
-      initialStoryState,
-      run([{ type: "START_CINEMATIC" }]),
-      run([{ type: "START_GUIDED" }]),
-    ]) {
-      expect(storyReducer(from, { type: "SKIP" })).toMatchObject({
-        phase: "finished",
-        step: "invitation",
-        awaiting: null,
-      });
-    }
-  });
-
-  it("replay restarts the cinematic from the beginning", () => {
-    const finished = run([{ type: "SKIP" }]);
-    expect(storyReducer(finished, { type: "REPLAY" })).toMatchObject({
-      phase: "playing",
-      mode: "cinematic",
-      step: "awakening",
-    });
-  });
-
-  it("ignores an 'ended' event while still on the intro screen", () => {
-    expect(storyReducer(initialStoryState, { type: "ENDED" })).toBe(initialStoryState);
-  });
-
-  it("ignores scene updates unless playing", () => {
-    const awaiting = run([{ type: "START_GUIDED" }]);
-    expect(storyReducer(awaiting, { type: "SCENE", scene: "wedding" })).toBe(awaiting);
-  });
-
-  it("guided: a scene update from a skipped frame cannot advance the step past the checkpoint", () => {
-    const playing = run([{ type: "START_GUIDED" }, { type: "ACTIVATE", target: "awakening" }]);
-    // the Player jumped from frame 1048 straight to 1050 etc. — step must stay put until the boundary logic runs
     expect(storyReducer(playing, { type: "SCENE", scene: "meeting" })).toBe(playing);
-    expect(storyReducer(playing, { type: "BOUNDARY", scene: "awakening" })).toMatchObject({
-      phase: "awaiting",
-      awaiting: "meeting",
-    });
+  });
+
+  it("skip, replay, reset and ignored actions", () => {
+    for (const from of [initialStoryState, run([{ type: "START_CINEMATIC" }]), run([{ type: "START_GUIDED" }])]) {
+      expect(storyReducer(from, { type: "SKIP" })).toMatchObject({ phase: "finished", step: "invitation", awaiting: null });
+    }
+    const fin = run([{ type: "SKIP" }]);
+    expect(storyReducer(fin, { type: "REPLAY" })).toEqual({ phase: "playing", mode: "cinematic", step: "awakening", awaiting: null });
+    expect(storyReducer(initialStoryState, { type: "ENDED" })).toBe(initialStoryState);
+    expect(storyReducer(initialStoryState, { type: "SCENE", scene: "meeting" })).toBe(initialStoryState);
+    expect(storyReducer(fin, { type: "RESET" })).toBe(initialStoryState);
   });
 });

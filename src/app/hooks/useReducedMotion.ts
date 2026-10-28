@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 
 const QUERY = "(prefers-reduced-motion: reduce)";
@@ -15,3 +16,4 @@ export const useReducedMotion = (): boolean => {
   }, []);
   return reduced;
 };
+

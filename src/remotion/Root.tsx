@@ -1,6 +1,6 @@
 import { Composition, getStaticFiles, staticFile } from "remotion";
-import { AUDIO_PATH } from "../config/assets";
-import { DURATION, FPS, HEIGHT, WIDTH } from "../config/timeline";
+import { AUDIO_PATH } from "../content/assets";
+import { DURATION, FPS, HEIGHT, WIDTH } from "../story/timeline";
 import { WeddingComposition } from "./WeddingComposition";
 import { defaultWeddingProps, type WeddingProps } from "./props";
 

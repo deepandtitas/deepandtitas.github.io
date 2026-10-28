@@ -1,5 +1,5 @@
-// Generates every painted layer, sprite and character part as SVG source in art/ (git-ignored), plus art/list.json.
-// scripts/bake-art.mjs then rasterises them to trimmed WebP and writes src/remotion/art-manifest.ts.
+// Generates every painted layer, sprite and character part as SVG source in out/art-src/ (git-ignored), plus art/list.json.
+// scripts/bake-art.mjs then rasterises them to trimmed WebP and writes src/art/manifest.ts.
 // Deterministic (seeded): re-run `npm run art` after tweaking anything in scripts/art/.
 // Pass group or piece names to regenerate only those: `node scripts/generate-art.mjs characters`.
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -8,7 +8,7 @@ import { gardenArt } from "./art/garden.mjs";
 import { mandapArt } from "./art/mandap.mjs";
 import { spriteArt } from "./art/sprites.mjs";
 
-const OUT = new URL("../art/", import.meta.url);
+const OUT = new URL("../out/art-src/", import.meta.url);
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 

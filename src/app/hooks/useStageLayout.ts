@@ -1,5 +1,5 @@
 import { useLayoutEffect, type RefObject } from "react";
-import { HEIGHT, WIDTH } from "../../config/timeline";
+import { HEIGHT, WIDTH } from "../../story/timeline";
 
 /** Where the language toggle and story controls sit: over the picture, in the bands above/below it, or beside it. */
 export type HudPlacement = "inside" | "bands" | "side";
@@ -71,3 +71,4 @@ export const useStageLayout = (stageRef: RefObject<HTMLElement | null>, roomRef:
     return () => ro.disconnect();
   }, [stageRef, roomRef]);
 };
+

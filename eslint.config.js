@@ -17,4 +17,12 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
     },
   },
+  {
+    // the picture is a pure function of the frame: no clocks, randomness or timers (remake/CONTRACTS.md rule 1)
+    files: ["src/story/**", "src/scene/**", "src/render/**"],
+    rules: {
+      "no-restricted-globals": ["error", "Date", "performance", "setTimeout", "setInterval", "requestAnimationFrame"],
+      "no-restricted-properties": ["error", { object: "Math", property: "random" }],
+    },
+  },
 );
