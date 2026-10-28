@@ -1,6 +1,6 @@
 import type { ArtName } from "../art-manifest";
 import type { Pt } from "../rig/motion";
-import { SpriteField } from "./Art";
+import type { SpriteState } from "./Art";
 
 /** Tuberose and rose with marigold: the flowers of a Bengali মালাবদল garland. */
 const KINDS: ArtName[] = ["marigold-a", "tuberose", "rose", "tuberose", "marigold-b", "tuberose", "rose", "tuberose"];
@@ -18,7 +18,7 @@ export const strandPoints = (a: Pt, b: Pt, sag: number, swing: number, n: number
   });
 };
 
-interface Props {
+interface Strand {
   a: Pt;
   b: Pt;
   sag: number;
@@ -31,8 +31,16 @@ interface Props {
   seed?: number;
 }
 
-/** A garland strand of flower sprites, laid out in composition coordinates. Only transforms change per frame. */
-export const Garland = ({ a, b, sag, swing = 0, size, count = 17, opacity = 1, seed = 0 }: Props) => {
-  const pts = opacity > 0 ? strandPoints(a, b, sag, swing, count) : [];
-  return <SpriteField sprites={pts.map((p, i) => ({ name: KINDS[(i + seed) % KINDS.length], x: p.x, y: p.y, rot: i * 47 + seed * 13, scale: size / 22, opacity }))} />;
-};
+/**
+ * A garland strand as flower sprites, laid out in composition coordinates. Always `count` sprites (opacity hides
+ * them), so the sprite field never changes length.
+ */
+export const garlandSprites = ({ a, b, sag, swing = 0, size, count = 17, opacity = 1, seed = 0 }: Strand): SpriteState[] =>
+  strandPoints(a, b, sag, swing, count).map((p, i) => ({
+    name: KINDS[(i + seed) % KINDS.length],
+    x: p.x,
+    y: p.y,
+    rot: i * 47 + seed * 13,
+    scale: size / 22,
+    opacity,
+  }));

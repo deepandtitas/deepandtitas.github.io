@@ -58,9 +58,14 @@ Look at them — key frames (60 FPS): 0, 300, 478 (scene 1), 840, 1138 (scene 2)
 12. **Performance rules (target ≈60 fps on phones).**
     - Art is baked to trimmed WebP (`npm run art`); don't reintroduce `mix-blend-mode`, SVG filters, `mask-image` or big
       per-frame SVG in the composition.
-    - Things that move every frame are rendered once and moved by transform/opacity only: `SpriteField` and the figures
-      write their per-frame styles straight to the DOM (`lib/live.ts`), so React does not re-diff them each frame.
-    - Never toggle `will-change` or mount/unmount big layers mid-story; hide with `visibility`/opacity instead.
+    - Things that move every frame are rendered once and moved by transform/opacity only: the figures write their
+      per-frame styles straight to the DOM (`lib/live.ts`), so React does not re-diff them each frame.
+    - Particles and other groups of sprites (petals, dust, garlands, arch flowers, diyas) draw into ONE canvas per group
+      (`SpriteField`, with a `box` that must contain them: `tests/sprites.test.ts`). Never one layer per sprite: phones
+      run out of GPU tiles and blank parts of the picture.
+    - Never mount or unmount anything mid-scene, and never reorder the DOM (swap who is in front with `zIndex`). Sprite
+      lists keep a fixed length (opacity 0 hides one); elements wait hidden (`visibility`) until needed. Never toggle
+      `will-change`. `npm run profile` reports layers and layer churn per scene: keep ≤ ~70 layers and no churn.
     - No Remotion `<Img>` in the website tree (they re-render every frame); `<ArtGate>` exists only for renders, and the
       loader pre-decodes every image before the story starts.
     - The Player always renders at 1080×1920 (scale 1); `useStageLayout` scales it with one CSS transform from a

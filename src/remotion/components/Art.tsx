@@ -1,8 +1,8 @@
-import { useMemo, type CSSProperties } from "react";
-import { Img } from "remotion";
+import { useLayoutEffect, useRef, type CSSProperties } from "react";
+import { continueRender, delayRender, Img } from "remotion";
 import { ART, type ArtName } from "../art-manifest";
-import { useAsset } from "../experience";
-import { useLiveStyles, type LiveStyle } from "../lib/live";
+import { useAsset, useExperience } from "../experience";
+import { artImage, imageReady } from "../lib/images";
 import type { PartXf } from "../rig/motion";
 
 /** Transform origin of a rig part: its rest pivot, relative to the part's image rectangle. */
@@ -67,38 +67,87 @@ export const spriteTransform = (s: SpriteState): string => {
   return `translate(${s.x.toFixed(2)}px,${s.y.toFixed(2)}px) rotate(${(s.rot ?? 0).toFixed(2)}deg) scale(${((s.sx ?? 1) * k).toFixed(4)},${k.toFixed(4)})`;
 };
 
+/** A rectangle in the parent's (composition) coordinates. */
+export interface Box {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+const FULL_FRAME: Box = { x: 0, y: 0, w: 1080, h: 1920 };
+
 /**
- * A set of moving sprites. The <img> elements are rendered once (re-rendered only if the list of images changes);
- * each frame only their transform/opacity is written to the DOM, with no React diffing.
+ * A set of moving sprites drawn into ONE canvas: a single compositor layer however many sprites there are, mounted
+ * once and never changing its DOM. Each frame it is cleared and every sprite is drawn with the same placement as
+ * `spriteTransform` around its design origin, so a sprite looks exactly as an <img> of it would. (One layer per sprite
+ * made phones run out of GPU tile memory and blank parts of the picture as sprites came and went.) Sprites must stay
+ * inside `box`. Opacity 0 hides a sprite; callers keep their list a fixed length instead of adding and removing them.
+ * `res` is canvas pixels per composition px: 1 is ≈1.08 device px on a 3× phone; soft particles can use less.
  */
-export const SpriteField = ({ sprites }: { sprites: readonly SpriteState[] }) => {
+export const SpriteField = ({ sprites, box = FULL_FRAME, res = 1 }: { sprites: readonly SpriteState[]; box?: Box; res?: number }) => {
   const url = useAsset();
-  const ref = useLiveStyles(
-    sprites.map((s): LiveStyle => ({ transform: spriteTransform(s), opacity: s.opacity ?? 1, visibility: (s.opacity ?? 1) > 0.002 ? "visible" : "hidden" })),
+  const { interactive } = useExperience();
+  const ref = useRef<HTMLCanvasElement>(null);
+  const drawn = useRef("");
+
+  useLayoutEffect(() => {
+    const canvas = ref.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    const imgs = sprites.map((s) => artImage(url(ART[s.name].src)));
+    // nothing moved (a finished arch, a still frame): keep what is drawn
+    const sig = sprites.map((s) => `${s.name}${s.x.toFixed(2)},${s.y.toFixed(2)},${s.rot ?? 0},${s.scale ?? 1},${s.sx ?? 1},${s.opacity ?? 1}`).join(";");
+    if (sig === drawn.current) return;
+    const draw = () => {
+      drawn.current = imgs.every((img, i) => imageReady(img) || (sprites[i].opacity ?? 1) <= 0.002) ? sig : "";
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      sprites.forEach((s, i) => {
+        const alpha = Math.min(1, s.opacity ?? 1);
+        const img = imgs[i];
+        if (alpha <= 0.002 || !imageReady(img)) return;
+        const a = ART[s.name];
+        const k = s.scale ?? 1;
+        const kx = (s.sx ?? 1) * k;
+        const r = ((s.rot ?? 0) * Math.PI) / 180;
+        const c = Math.cos(r);
+        const sn = Math.sin(r);
+        // translate(x, y) · rotate(r) · scale(kx, k), as in spriteTransform
+        ctx.setTransform(res * c * kx, res * sn * kx, -res * sn * k, res * c * k, res * (s.x - box.x), res * (s.y - box.y));
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(img, a.x, a.y, a.w, a.h);
+      });
+      ctx.globalAlpha = 1;
+    };
+    draw();
+    const pending = imgs.filter((img, i) => !imageReady(img) && (sprites[i].opacity ?? 1) > 0.002);
+    if (pending.length === 0) return;
+    // not decoded yet: a render waits for it; the website (whose loader decodes everything first) just redraws
+    let live = true;
+    let handle: number | null = interactive ? null : delayRender("sprite images");
+    const release = () => {
+      if (handle !== null) continueRender(handle);
+      handle = null;
+    };
+    Promise.all(pending.map((img) => img.decode().catch(() => undefined))).then(() => {
+      if (live) draw();
+      release();
+    });
+    return () => {
+      live = false;
+      release();
+    };
+  });
+
+  return (
+    <canvas
+      ref={ref}
+      width={Math.ceil(box.w * res)}
+      height={Math.ceil(box.h * res)}
+      style={{ position: "absolute", left: box.x, top: box.y, width: box.w, height: box.h }}
+    />
   );
-  const key = sprites.map((s) => s.name).join("|");
-  const nodes = useMemo(
-    () =>
-      key
-        .split("|")
-        .filter(Boolean)
-        .map((name, i) => {
-          const n = name as ArtName;
-          return (
-            <img
-              key={`${i}-${n}`}
-              ref={ref(i)}
-              src={url(ART[n].src)}
-              alt=""
-              draggable={false}
-              decoding="sync"
-              style={{ ...artBox(n), transformOrigin: `${-ART[n].x}px ${-ART[n].y}px`, willChange: "transform, opacity" }}
-            />
-          );
-        }),
-    [key, url, ref],
-  );
-  return <>{nodes}</>;
 };
 
 /** A single static sprite (rendered through React; for things that do not move every frame). */

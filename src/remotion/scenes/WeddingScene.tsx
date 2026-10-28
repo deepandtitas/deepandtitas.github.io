@@ -1,8 +1,8 @@
 import { BEATS, SCENE_BEATS, sceneDuration } from "../../config/timeline";
-import { Sprite } from "../components/Art";
+import { Sprite, SpriteField } from "../components/Art";
 import { Emblem } from "../components/Emblem";
-import { MandapArch, MandapDiyas, MandapStructure } from "../components/FloralMandap";
-import { Garland } from "../components/Garland";
+import { ARCH_BOX_GATHERED, MandapArch, MandapDiyas, MandapStructure } from "../components/FloralMandap";
+import { garlandSprites } from "../components/Garland";
 import { GlowDisc, Layer } from "../components/Layer";
 import { GuidedHotspot } from "../components/GuidedHotspot";
 import { InvitationCard } from "../components/InvitationCard";
@@ -36,6 +36,8 @@ const SWAP = 336;
 const bump = (f: number, a: number, b: number) => Math.sin(Math.PI * progress(f, [a, b], (t) => t));
 
 const SIZE = 22 * COUPLE.scale;
+/** Canvas bounds of the garlands: from the couple's chins down past their hands. */
+export const GARLAND_BOX = { x: 180, y: 640, w: 720, h: 820 };
 
 type Side = { l: PoseWeights | Pt; r: PoseWeights | Pt };
 const named = (w: PoseWeights): Side => ({ l: w, r: w });
@@ -245,10 +247,9 @@ export const WeddingScene = () => {
   const edge = progress(f, B.cardEdge);
   const cardTop = lerp(1920, CARD_EDGE_Y, easeInOut(edge));
 
+  // who is drawn in front changes by z-index, never by reordering the DOM (moving a figure rebuilds its layers)
   const groomFirst = f < SWAP;
-  const figures = groomFirst
-    ? [<Groom key="g" {...pose.groom} />, <Bride key="b" {...pose.bride} />]
-    : [<Bride key="b" {...pose.bride} />, <Groom key="g" {...pose.groom} />];
+  const garlandField = garlands.flatMap((gl) => garlandSprites({ ...gl, size: SIZE }));
 
   return (
     <div style={{ position: "absolute", inset: 0 }}>
@@ -256,29 +257,38 @@ export const WeddingScene = () => {
       <GlowDisc x={540} y={1040} r={760} opacity={glow} />
 
       <MandapStructure build={Math.round(build * 400) / 400} />
-      <MandapArch gather={1} />
+      <MandapArch gather={1} box={ARCH_BOX_GATHERED} />
       <MandapDiyas build={build} lights={lights} time={g} />
       <GlowDisc x={GAZE_POINT.x} y={GAZE_POINT.y + 10} r={230} opacity={meet} />
 
-      {figures}
-      {garlands.map((gl, i) => (
-        <Garland key={i} a={gl.a} b={gl.b} sag={gl.sag} swing={gl.swing} size={SIZE} opacity={gl.opacity} seed={gl.seed} />
-      ))}
+      <div style={{ position: "absolute", inset: 0, zIndex: 0 }}>
+        <div style={{ position: "absolute", inset: 0, zIndex: groomFirst ? 1 : 2 }}>
+          <Groom {...pose.groom} />
+        </div>
+        <div style={{ position: "absolute", inset: 0, zIndex: groomFirst ? 2 : 1 }}>
+          <Bride {...pose.bride} />
+        </div>
+      </div>
+      <SpriteField sprites={garlandField} box={GARLAND_BOX} />
       <SetDownLeaves f={f} reduced={reducedMotion} />
 
-      {/* petal → gold ornament */}
-      {inScene && hp > 0 && (
-        <Sprite name="petal-marigold" x={petal.x} y={petal.y} rot={petal.rot} scale={lerp(1.3, 1.7, hp)} opacity={1 - morph} />
-      )}
-
-      {inScene && edge > 0 && (
-        <>
-          <InvitationCard frame={0} top={cardTop} border={edge} />
-          <Layer>
-            <Emblem x={ORNAMENT_POS.x} y={ORNAMENT_POS.y} scale={ORNAMENT_SCALE * (reducedMotion ? 1 : lerp(0.5, 1, morph))} opacity={morph} />
-          </Layer>
-        </>
-      )}
+      {/* petal → gold ornament → the card's edge. Mounted for the whole scene and hidden until needed (the card waits
+          below the frame), so nothing is created mid-scene. */}
+      <Sprite
+        name="petal-marigold"
+        x={petal.x}
+        y={petal.y}
+        rot={petal.rot}
+        scale={lerp(1.3, 1.7, hp)}
+        opacity={inScene && hp > 0 ? 1 - morph : 0}
+        style={{ visibility: inScene && hp > 0 && morph < 1 ? "visible" : "hidden" }}
+      />
+      <div style={{ position: "absolute", inset: 0, visibility: inScene && edge > 0 ? "visible" : "hidden" }}>
+        <InvitationCard frame={0} top={cardTop} border={edge} />
+        <Layer>
+          <Emblem x={ORNAMENT_POS.x} y={ORNAMENT_POS.y} scale={ORNAMENT_SCALE * (reducedMotion ? 1 : lerp(0.5, 1, morph))} opacity={morph} />
+        </Layer>
+      </div>
 
       {interactive && guided.awaiting === "invitation" && (
         <GuidedHotspot

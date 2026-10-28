@@ -1,7 +1,7 @@
 // Plays the built site in headless Chrome as a throttled phone and reports frame rate per scene.
 // Usage: npm run profile            (builds first)
 //        node scripts/profile.mjs [--throttle=4] [--no-build] [--width=390 --height=844 --dpr=3]
-// Target: ≈60 fps in every scene at 4× CPU throttling. Headless Chrome may composite in software, so treat the
+// Target: ≈60 fps in every scene at 2× CPU throttling, ≤ ~70 layers per scene and no layer churn. Headless Chrome may composite in software, so treat the
 // numbers as a relative benchmark between changes, not as an absolute device measurement.
 import { chromium } from "playwright-core";
 import { execSync } from "node:child_process";
@@ -63,6 +63,13 @@ await page.evaluate(() => {
   requestAnimationFrame(tick);
 });
 await cdp.send("Performance.enable");
+// composited layers: phones drop GPU tiles (parts of the picture blink out) when there are too many, or when layers
+// are created and destroyed while playing
+let layerCount = 0;
+cdp.on("LayerTree.layerTreeDidChange", (e) => {
+  if (e.layers) layerCount = e.layers.filter((l) => l.drawsContent && !l.invisible).length;
+});
+await cdp.send("LayerTree.enable");
 await page.tap(".cover .btn--primary");
 const started = Date.now();
 // sample main-thread time (script / style / layout) every half second, attributed to the scene being played
@@ -73,7 +80,7 @@ for (;;) {
     page.evaluate(() => [window.__weddingPlayer.current?.getCurrentFrame() ?? 0, window.__weddingState?.current?.phase]),
   ]);
   const m = Object.fromEntries(metrics.map((x) => [x.name, x.value]));
-  samples.push({ t: Date.now(), frame: state[0], script: m.ScriptDuration, style: m.RecalcStyleDuration, layout: m.LayoutDuration, task: m.TaskDuration });
+  samples.push({ t: Date.now(), frame: state[0], layers: layerCount, script: m.ScriptDuration, style: m.RecalcStyleDuration, layout: m.LayoutDuration, task: m.TaskDuration });
   if (state[1] === "finished" || Date.now() - started > 180000) break;
   await new Promise((r) => setTimeout(r, 500));
 }
@@ -115,7 +122,11 @@ for (const [id, s] of Object.entries(SCENES)) {
     }
     return span > 0 ? `${Math.round((busy / span) * 100)}%` : "-";
   };
-  rows.push({ scene: id, fps: +(1000 / avg).toFixed(1), "p95 ms": +p95.toFixed(1), "long frames": dropped, "player frames": advanced, expected: s.end - s.start, script: share("script"), style: share("style"), layout: share("layout"), busy: share("task") });
+  // layer churn: how often the layer count changed after the scene's first second (target 0)
+  const settled = ss.filter((x) => x.frame >= s.start + 60);
+  const churn = settled.filter((x, i) => i > 0 && x.layers !== settled[i - 1].layers).length;
+  const maxLayers = Math.max(0, ...ss.map((x) => x.layers));
+  rows.push({ scene: id, fps: +(1000 / avg).toFixed(1), "p95 ms": +p95.toFixed(1), "long frames": dropped, "player frames": advanced, expected: s.end - s.start, script: share("script"), style: share("style"), layout: share("layout"), busy: share("task"), layers: maxLayers, "layer churn": churn });
 }
 console.log(`\n${width}×${height} @${dpr}x, CPU throttle ${throttle}×, wall ${wall.toFixed(1)} s (story is 50 s)`);
 console.table(rows);

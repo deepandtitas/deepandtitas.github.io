@@ -23,6 +23,12 @@ const archPoint = (i: number) => {
   return { x: MANDAP.cx + MANDAP.archRx * Math.cos(a), y: MANDAP.archCy - MANDAP.archRy * Math.sin(a) - 8 };
 };
 
+/** Where the arch flowers fly (from the bushes, up and over into the arch) and where the diyas glow: canvas bounds. */
+export const ARCH_BOX = { x: 0, y: 160, w: 1080, h: 1160 };
+/** The gathered arch alone (once every flower is in place). */
+export const ARCH_BOX_GATHERED = { x: 160, y: 330, w: 760, h: 400 };
+export const DIYA_BOX = { x: 0, y: 1360, w: 1080, h: 400 };
+
 /** Flowering bushes in the garden (composition coordinates) where the arch flowers rise from. */
 const BUSHES = [
   { x: 190, y: 1010 },
@@ -82,12 +88,11 @@ export const MandapStructure = memo(function MandapStructure({ build }: { build:
 });
 
 /**
- * The arch of marigolds above the couple. The flowers do not exist until `gather` begins: each one appears in a
+ * The arch of marigolds above the couple. The flowers are invisible until `gather` begins: each one appears in a
  * flowering bush of the garden and flies up into its place in the arch, one after another.
  */
-export const MandapArch = ({ gather }: { gather: number }) => {
-  if (gather <= 0) return null;
-  const sprites = Array.from({ length: ARCH_COUNT }, (_, i): SpriteState => {
+export const archSprites = (gather: number): SpriteState[] =>
+  Array.from({ length: ARCH_COUNT }, (_, i): SpriteState => {
     const fin = archPoint(i);
     const order = (i % 2 === 0 ? i / 2 : (ARCH_COUNT - 1 - i) / 2 + 0.5) / (ARCH_COUNT / 2); // the two ends first
     const g = Math.min(1, Math.max(0, gather * 1.65 - order * 0.65));
@@ -105,8 +110,11 @@ export const MandapArch = ({ gather }: { gather: number }) => {
       opacity: g > 0 ? Math.min(1, g * 5) : 0,
     };
   });
-  return <SpriteField sprites={sprites} />;
-};
+
+/** `box`: ARCH_BOX while flowers fly in; a scene that only shows the finished arch passes ARCH_BOX_GATHERED. */
+export const MandapArch = ({ gather, box = ARCH_BOX }: { gather: number; box?: typeof ARCH_BOX }) => (
+  <SpriteField sprites={archSprites(gather)} box={box} />
+);
 
 const DIYA_SPOTS = [
   { x: 120, y: 1560 },
@@ -122,10 +130,9 @@ const DIYA_SPOTS = [
 export const DIYA_COUNT = DIYA_SPOTS.length;
 
 /** Clay lamps along the front of the mandap: baked bowl, flame and glow sprites; the flame flickers by transform. */
-export const MandapDiyas = ({ build, lights, time }: { build: number; lights: number; time: number }) => {
-  if (build <= 0.02) return null;
+export const diyaSprites = (build: number, lights: number, time: number): SpriteState[] => {
   const sprites: SpriteState[] = [];
-  const fade = Math.min(1, build * 3);
+  const fade = build > 0.02 ? Math.min(1, build * 3) : 0;
   DIYA_SPOTS.forEach((d, i) => {
     const lit = progress(lights, [(i / DIYA_COUNT) * 0.7, (i / DIYA_COUNT) * 0.7 + 0.3]);
     const tt = time + i * 11;
@@ -137,5 +144,9 @@ export const MandapDiyas = ({ build, lights, time }: { build: number; lights: nu
       { name: "flame", x: d.x, y: d.y - 20 * s, rot: Math.sin(tt * 0.41) * 3, scale: Math.max(0.001, s * lit * flick), opacity: lit > 0.01 ? fade : 0 },
     );
   });
-  return <SpriteField sprites={sprites} />;
+  return sprites;
 };
+
+export const MandapDiyas = ({ build, lights, time }: { build: number; lights: number; time: number }) => (
+  <SpriteField sprites={diyaSprites(build, lights, time)} box={DIYA_BOX} />
+);

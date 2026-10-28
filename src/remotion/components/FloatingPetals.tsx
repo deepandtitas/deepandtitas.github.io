@@ -1,6 +1,6 @@
 import type { ArtName } from "../art-manifest";
 import { seeded } from "../lib/anim";
-import { SpriteField, type SpriteState } from "./Art";
+import type { SpriteState } from "./Art";
 
 type Kind = "marigold" | "mixed";
 
@@ -16,12 +16,12 @@ interface Props {
 }
 
 /**
- * Drifting petals on three depth layers: baked, pre-decoded sprites moved only by transforms and opacity.
- * Only the petals in the air are rendered; the count changes slowly with the intensity.
+ * Drifting petals on three depth layers, as sprites for a SpriteField. Always COUNT of them: the intensity fades
+ * petals in and out one after another (by opacity), so nothing is added or removed mid-story.
  */
-export const FloatingPetals = ({ beat, intensity, kind = "mixed" }: Props) => {
-  const visible = intensity > 0.01 ? Math.ceil(COUNT * Math.min(1, intensity)) : 0;
-  const sprites = Array.from({ length: visible }, (_, i): SpriteState => {
+export const petalSprites = ({ beat, intensity, kind = "mixed" }: Props): SpriteState[] => {
+  const n = COUNT * Math.min(1, Math.max(0, intensity));
+  return Array.from({ length: COUNT }, (_, i): SpriteState => {
     const T = 420 + seeded(i + 1) * 360;
     const phase = seeded(i + 40) * T;
     const f = ((beat + phase) % T) / T;
@@ -36,7 +36,7 @@ export const FloatingPetals = ({ beat, intensity, kind = "mixed" }: Props) => {
     const flip = Math.cos(beat * (0.04 + seeded(i + 15) * 0.04) + i);
     const env = Math.min(1, f * 7, (1 - f) * 7);
     const name: ArtName = kind === "marigold" ? (i % 4 === 0 ? "petal-red" : "petal-marigold") : MIXED[i % MIXED.length];
-    return { name, x, y, rot: spin, scale: size, sx: 0.35 + 0.65 * Math.abs(flip), opacity: env * base * Math.min(1, intensity) };
+    const present = Math.min(1, Math.max(0, n - i));
+    return { name, x, y, rot: spin, scale: size, sx: 0.35 + 0.65 * Math.abs(flip), opacity: env * base * Math.min(1, intensity) * present };
   });
-  return <SpriteField sprites={sprites} />;
 };

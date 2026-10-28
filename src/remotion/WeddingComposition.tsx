@@ -1,10 +1,10 @@
 import { AbsoluteFill, Sequence } from "remotion";
 import { BEATS, SCENE_BEATS, SCENE_OVERLAP, SCENES, beatsToFrames, sceneDuration, type SceneId } from "../config/timeline";
 import { cameraZoom, CAMERA_FOCUS } from "./camera";
-import { ArtGate } from "./components/Art";
-import { FloatingPetals } from "./components/FloatingPetals";
+import { ArtGate, SpriteField } from "./components/Art";
+import { petalSprites } from "./components/FloatingPetals";
 import { GardenBack, GardenForeground } from "./components/GardenStage";
-import { GoldDust } from "./components/GoldDust";
+import { dustSprites } from "./components/GoldDust";
 import { PaperBackground } from "./components/PaperBackground";
 import { SceneHeading } from "./components/SceneHeading";
 import { SharedDefs } from "./components/SharedDefs";
@@ -39,18 +39,15 @@ const dustIntensity = (b: number): number =>
     [0, 0.55, 0.4, 0.45, 1, 0.5, 0.35, 0.12],
   );
 
-/** Global layers: floating petals and gold dust drift across scene boundaries. */
+/** Global layer: floating petals and gold dust drift across scene boundaries, drawn together into one canvas. */
 const Atmosphere = () => {
   const beat = useBeat();
   const { reducedMotion } = useExperience();
   if (reducedMotion) return null;
   const kind = beat >= S.wedding.start + 280 && beat < S.wedding.end ? "marigold" : "mixed";
-  return (
-    <>
-      <GoldDust beat={beat} intensity={dustIntensity(beat)} />
-      <FloatingPetals beat={beat} intensity={petalIntensity(beat)} kind={kind} />
-    </>
-  );
+  const sprites = [...dustSprites({ beat, intensity: dustIntensity(beat) }), ...petalSprites({ beat, intensity: petalIntensity(beat), kind })];
+  // soft, blurred-by-motion particles: three-quarter resolution is indistinguishable and saves GPU memory
+  return <SpriteField sprites={sprites} res={0.75} />;
 };
 
 /** Scene titles, drawn above the garden foreground so leaves can never hide them. */

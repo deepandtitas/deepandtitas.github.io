@@ -3,6 +3,8 @@
  * decoded, so no layer ever pops in or flickers mid-story) and the soundtrack (so playback never stalls).
  * Progress is weighted by size. A missing or failing soundtrack is ignored — the story works without it.
  */
+import { artImage } from "../../remotion/lib/images";
+
 export interface LoadItem {
   id: string;
   kind: "font" | "image" | "audio";
@@ -22,15 +24,13 @@ export const weightedProgress = (items: readonly LoadItem[], done: ReadonlyMap<s
   return got / total;
 };
 
-/** Keeps decoded images referenced for the lifetime of the page, so the browser keeps them ready. */
-const KEEP: HTMLImageElement[] = [];
-
+/**
+ * Fetches and decodes through the composition's shared image cache, so the story's canvases draw these very images
+ * (and the cache keeps them referenced, so the browser keeps them decoded).
+ */
 const loadImage = (src: string): Promise<void> =>
   new Promise((resolve, reject) => {
-    const img = new Image();
-    img.decoding = "async";
-    img.src = src;
-    KEEP.push(img);
+    const img = artImage(src);
     img
       .decode()
       .then(() => resolve())
