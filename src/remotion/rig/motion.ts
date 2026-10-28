@@ -82,58 +82,81 @@ export const restArm = (who: Who, side: 1 | -1) => {
   return { S, E, H, upper: len(sub(E, S)), lower: len(sub(H, E)) };
 };
 
-/** Named hand targets (palm centres, torso-local, for the screen-right arm; the left arm mirrors x). */
-export const HAND_POSES = {
+/**
+ * Named arm poses for the screen-right arm (the left arm mirrors x), torso-local: where the palm goes AND where the
+ * elbow sits. A flat, front-facing figure cannot fold its arms in depth, so each pose says where the elbow appears and
+ * the arm is foreshortened (scaled along its length) to reach — the elbows stay at the sides and the arms never cross.
+ */
+export const ARM_POSES = {
   groom: {
-    namaskar: { x: 7, y: -452 },
-    hold: { x: 44, y: -432 },
-    chest: { x: 10, y: -462 },
-    face: { x: 12, y: -548 },
-    aside: { x: 70, y: -372 },
-    low: { x: 26, y: -350 },
+    namaskar: { hand: { x: 7, y: -452 }, elbow: { x: 88, y: -404 } },
+    hold: { hand: { x: 44, y: -432 }, elbow: { x: 94, y: -390 } },
+    chest: { hand: { x: 10, y: -462 }, elbow: { x: 90, y: -404 } },
+    face: { hand: { x: 12, y: -548 }, elbow: { x: 46, y: -428 } },
+    aside: { hand: { x: 78, y: -330 }, elbow: { x: 76, y: -392 } },
+    low: { hand: { x: 26, y: -350 }, elbow: { x: 80, y: -392 } },
   },
   bride: {
-    namaskar: { x: 7, y: -448 },
-    hold: { x: 40, y: -430 },
-    chest: { x: 9, y: -462 },
-    face: { x: 11, y: -546 },
-    aside: { x: 66, y: -380 },
-    low: { x: 24, y: -356 },
+    namaskar: { hand: { x: 7, y: -448 }, elbow: { x: 78, y: -400 } },
+    hold: { hand: { x: 40, y: -430 }, elbow: { x: 88, y: -388 } },
+    chest: { hand: { x: 9, y: -462 }, elbow: { x: 80, y: -404 } },
+    face: { hand: { x: 11, y: -546 }, elbow: { x: 40, y: -430 } },
+    aside: { hand: { x: 74, y: -330 }, elbow: { x: 70, y: -390 } },
+    low: { hand: { x: 24, y: -356 }, elbow: { x: 74, y: -388 } },
   },
-} as const satisfies Record<Who, Record<string, Pt>>;
+} as const satisfies Record<Who, Record<string, { hand: Pt; elbow: Pt }>>;
 
-export type PoseName = keyof (typeof HAND_POSES)["groom"];
+export type PoseName = keyof (typeof ARM_POSES)["groom"];
 export type PoseWeights = Partial<Record<PoseName, number>>;
 
-/** Blends named poses on top of the rest pose, in order; each weight is 0..1. */
-export const poseTarget = (who: Who, side: 1 | -1, w: PoseWeights): Pt => {
-  let p = restArm(who, side).H;
-  for (const name of Object.keys(HAND_POSES[who]) as PoseName[]) {
+/** Blends named poses on top of the rest pose, in order (each weight 0..1): palm and elbow, torso-local. */
+export const poseArm = (who: Who, side: 1 | -1, w: PoseWeights): { hand: Pt; elbow: Pt } => {
+  const rest = restArm(who, side);
+  let hand = rest.H;
+  let elbow = rest.E;
+  for (const name of Object.keys(ARM_POSES[who]) as PoseName[]) {
     const t = clamp(w[name] ?? 0, 0, 1);
     if (t <= 0) continue;
-    const q = HAND_POSES[who][name];
-    p = lerpPt(p, { x: q.x * side, y: q.y }, t);
+    const q = ARM_POSES[who][name];
+    hand = lerpPt(hand, { x: q.hand.x * side, y: q.hand.y }, t);
+    elbow = lerpPt(elbow, { x: q.elbow.x * side, y: q.elbow.y }, t);
   }
-  return p;
+  return { hand, elbow };
 };
 
+/** Where the palm goes for a blend of named poses (torso-local). */
+export const poseTarget = (who: Who, side: 1 | -1, w: PoseWeights): Pt => poseArm(who, side, w).hand;
+
+/** Foreshortening limit: a segment can come toward the viewer down to this fraction of its length. */
+const MIN_FORESHORTEN = 0.5;
+
 /**
- * Two-bone IK: elbow and hand for a target, elbow bent down and outward (away from the body), so it never flips.
- * Out-of-reach targets are approached as closely as the arm allows.
+ * Two-bone IK for explicit hand targets (the garland exchange): the solution whose elbow is nearest the arm's natural
+ * hanging elbow (moved with the body), so the elbow never flips to the other side of the body.
  */
-export const solveArm = (S: Pt, T: Pt, upper: number, lower: number, side: 1 | -1) => {
+export const solveArm = (S: Pt, T: Pt, upper: number, lower: number, prefElbow: Pt) => {
   const d0 = sub(T, S);
   const d = clamp(len(d0), Math.abs(upper - lower) + 1, (upper + lower) * 0.99999);
   const base = Math.atan2(d0.y, d0.x);
   const a = Math.acos(clamp((upper * upper + d * d - lower * lower) / (2 * upper * d), -1, 1));
   const c1 = { x: S.x + Math.cos(base + a) * upper, y: S.y + Math.sin(base + a) * upper };
   const c2 = { x: S.x + Math.cos(base - a) * upper, y: S.y + Math.sin(base - a) * upper };
-  // a natural elbow hangs down and out: prefer the lower candidate, then the one further from the body
-  const score = (c: Pt) => c.y + c.x * side * 0.35;
-  const E = score(c1) >= score(c2) ? c1 : c2;
+  const E = len(sub(c1, prefElbow)) <= len(sub(c2, prefElbow)) ? c1 : c2;
   const dir = Math.atan2(T.y - E.y, T.x - E.x);
-  const H = { x: E.x + Math.cos(dir) * lower, y: E.y + Math.sin(dir) * lower };
-  return { E, H };
+  return { E, H: { x: E.x + Math.cos(dir) * lower, y: E.y + Math.sin(dir) * lower } };
+};
+
+/**
+ * Places an arm from a shoulder, a chosen elbow and a palm target: each segment points where it must and is
+ * foreshortened (never stretched beyond a hair) to reach. Returns the elbow and palm actually reached and both scales.
+ */
+export const placeArm = (S: Pt, E: Pt, T: Pt, upper: number, lower: number) => {
+  const ku = clamp(len(sub(E, S)) / upper, MIN_FORESHORTEN, 1.03);
+  const dirU = Math.atan2(E.y - S.y, E.x - S.x);
+  const elbow = { x: S.x + Math.cos(dirU) * upper * ku, y: S.y + Math.sin(dirU) * upper * ku };
+  const kf = clamp(len(sub(T, elbow)) / lower, MIN_FORESHORTEN, 1.03);
+  const dirF = Math.atan2(T.y - elbow.y, T.x - elbow.x);
+  return { E: elbow, H: { x: elbow.x + Math.cos(dirF) * lower * kf, y: elbow.y + Math.sin(dirF) * lower * kf }, ku, kf };
 };
 
 /** A placed part: rotate by `rot` (deg) and scale about its rest pivot, then move the pivot to `at`. */
@@ -263,19 +286,24 @@ export const solveFigure = (who: Who, p: FigurePose): SolvedFigure => {
   const arm = (side: 1 | -1) => {
     const rest = restArm(who, side);
     const spec = side === 1 ? p.arms?.r : p.arms?.l;
-    let target: Pt;
-    if (isPt(spec)) target = spec;
-    else {
-      const local = poseTarget(who, side, spec ?? {});
+    const S = onTorso(rest.S);
+    let E: Pt;
+    let H: Pt;
+    let ku = 1;
+    let kf = 1;
+    if (isPt(spec)) {
+      ({ E, H } = solveArm(S, spec, rest.upper, rest.lower, onTorso(rest.E)));
+    } else {
+      const pose = poseArm(who, side, spec ?? {});
       // arms swing a little while walking (only when hanging at rest)
       const restness = spec ? 1 - Math.min(1, Object.values(spec).reduce((a, b) => a + (b ?? 0), 0)) : 1;
       const swing = Math.sin(ph + (side === 1 ? 0 : Math.PI)) * moving * restness;
-      target = onTorso({ x: local.x + swing * 6 * side, y: local.y - Math.max(0, swing) * 10 });
+      const off = { x: swing * 6 * side, y: -Math.max(0, swing) * 10 };
+      ({ E, H, ku, kf } = placeArm(S, onTorso(pose.elbow), onTorso(add(pose.hand, off)), rest.upper, rest.lower));
     }
-    const S = onTorso(rest.S);
-    const { E, H } = solveArm(S, target, rest.upper, rest.lower, side);
-    const upper: PartXf = { pivot: rest.S, at: S, rot: angle(sub(E, S)) - angle(sub(rest.E, rest.S)) };
-    const fore: PartXf = { pivot: rest.E, at: E, rot: angle(sub(H, E)) - angle(sub(rest.H, rest.E)) };
+    // foreshortened segments are scaled along their own length (each part is drawn along its local y axis)
+    const upper: PartXf = { pivot: rest.S, at: S, rot: angle(sub(E, S)) - angle(sub(rest.E, rest.S)), ...(ku !== 1 ? { sy: ku } : {}) };
+    const fore: PartXf = { pivot: rest.E, at: E, rot: angle(sub(H, E)) - angle(sub(rest.H, rest.E)), ...(kf !== 1 ? { sy: kf } : {}) };
     return { upper, fore, H, ang: angle(sub(H, E)) };
   };
   const L = arm(-1);
