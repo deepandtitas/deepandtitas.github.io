@@ -1,4 +1,7 @@
-/* The strict 9:16 stage. The cinematic frame never changes proportion, on any screen. */
+/*
+ * The strict 9:16 stage. The cinematic frame never changes proportion, on any screen. useStageLayout fits it into
+ * .stage__room and writes --frame-w, --stage-scale, --band-x/-y and data-hud on .stage, in the same frame as a resize.
+ */
 .stage {
   position: fixed;
   inset: 0;
@@ -9,22 +12,40 @@
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
-.frame {
-  --avail-w: calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right));
-  --avail-h: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-  position: relative;
+.stage > .frame,
+.stage > .hud {
+  grid-area: 1 / 1;
+  width: var(--frame-w, min(100vw, 56.25vh));
   aspect-ratio: 9 / 16;
-  width: min(var(--avail-w), calc(var(--avail-h) * 9 / 16));
   container-type: inline-size;
+}
+
+/*
+ * The room the frame is fitted into: the small viewport (what is left while a phone's toolbars are showing), inside
+ * the safe areas. It does not change as the address bar slides in and out, so neither does the frame.
+ */
+.stage__room {
+  position: absolute;
+  left: env(safe-area-inset-left);
+  right: env(safe-area-inset-right);
+  top: env(safe-area-inset-top);
+  height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  max-height: calc(100% - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@supports (height: 100svh) {
+  .stage__room {
+    height: calc(100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+}
+
+.frame {
+  position: relative;
   background: var(--ivory);
   overflow: hidden;
   isolation: isolate;
-}
-
-@supports (height: 100dvh) {
-  .frame {
-    --avail-h: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-  }
 }
 
 @media (min-width: 700px) and (min-height: 640px) {
@@ -34,9 +55,42 @@
   }
 }
 
+/* the composition at its own 1080×1920, scaled down as one layer (never re-laid-out or re-rendered on resize) */
 .frame__player {
   position: absolute;
-  inset: 0;
+  left: 0;
+  top: 0;
+  width: 1080px;
+  height: 1920px;
+  transform-origin: 0 0;
+  transform: scale(var(--stage-scale, 0.3333));
+}
+
+/* ---------- HUD: language toggle and story controls ---------- */
+.hud {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.rotate-hint {
+  display: none;
+}
+
+@media (orientation: landscape) and (max-height: 560px) and (pointer: coarse) {
+  [data-hud="side"] .rotate-hint {
+    display: block;
+    position: absolute;
+    right: calc(100% + 24px);
+    top: 50%;
+    width: min(240px, calc(var(--band-x) - 48px));
+    margin: 0;
+    transform: translateY(-50%);
+    color: rgba(245, 235, 221, 0.82);
+    font-size: 15px;
+    line-height: 1.5;
+    text-align: right;
+  }
 }
 
 /* ---------- buttons ---------- */
@@ -153,7 +207,7 @@
   color: var(--sindoor-red);
   /* ivory title panel at the top, the painted lotus showing through the middle, a deep band for the actions */
   background:
-    linear-gradient(180deg, #f8efe1 0%, #f8efe1 30%, rgba(248, 239, 225, 0.95) 38%, rgba(248, 239, 225, 0) 52%),
+    linear-gradient(180deg, #f8efe1 0%, #f8efe1 33%, rgba(248, 239, 225, 0.94) 41%, rgba(248, 239, 225, 0) 52%),
     linear-gradient(0deg, rgba(43, 18, 20, 0.92) 0%, rgba(58, 24, 26, 0.78) 22%, rgba(58, 24, 26, 0) 40%);
   animation: cover-in 0.9s ease-out both;
 }
@@ -182,7 +236,7 @@
   position: absolute;
   left: 6cqw;
   right: 6cqw;
-  top: 10cqw;
+  top: 7.5cqw;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -200,8 +254,8 @@
 .cover__head > :nth-child(6) { animation-delay: 0.52s; }
 
 .cover__emblem {
-  width: 17cqw;
-  height: 17cqw;
+  width: 14cqw;
+  height: 14cqw;
   filter: drop-shadow(0 0.8cqw 1.6cqw rgba(120, 31, 43, 0.3));
 }
 
@@ -226,8 +280,8 @@
   padding: 0.32em 0.2em; /* room for Galada's tall loops: never clipped */
   font-family: var(--font-bn-display);
   font-weight: 400;
-  font-size: 15.5cqw;
-  line-height: 1.3;
+  font-size: 14.5cqw;
+  line-height: 1.25;
   white-space: nowrap;
   color: var(--sindoor-red);
   text-shadow: 0 0 2.4cqw rgba(233, 201, 126, 0.65), 0 0.3cqw 0 rgba(196, 154, 82, 0.35);
@@ -347,7 +401,7 @@
 /* ---------- language toggle ---------- */
 .lang-toggle {
   position: absolute;
-  z-index: 8;
+  pointer-events: auto;
   top: 2.4cqw;
   right: 2.8cqw;
   display: flex;
@@ -403,6 +457,7 @@
   border: 1px solid rgba(196, 154, 82, 0.8);
   font-size: clamp(13px, 3.7cqw, 17px);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .ctl:hover {
@@ -435,6 +490,44 @@
 
 .toast:empty {
   display: none;
+}
+
+/* tall screens: the toggle and the controls sit in the bands above and below the picture, clear of the art */
+[data-hud="bands"] .lang-toggle {
+  top: calc(var(--band-y) / -2);
+  transform: translateY(-50%);
+}
+
+[data-hud="bands"] .controls {
+  bottom: calc(var(--band-y) / -2);
+  transform: translateY(50%);
+}
+
+/* over the picture, the toggle stands where the cover's top flourishes would be */
+[data-hud="inside"] .cover__corner--tl,
+[data-hud="inside"] .cover__corner--tr {
+  visibility: hidden;
+}
+
+/* wide screens (landscape, desktop): beside the picture, top and bottom right */
+[data-hud="side"] .lang-toggle {
+  top: 0;
+  right: auto;
+  left: calc(100% + 20px);
+}
+
+[data-hud="side"] .controls {
+  left: calc(100% + 20px);
+  right: auto;
+  bottom: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0;
+}
+
+[data-hud="side"] .toast {
+  left: 0;
+  transform: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

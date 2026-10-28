@@ -20,6 +20,7 @@ Interactive Bengali wedding invitation. A Remotion composition (1080×1920, 60 F
   `components/WeddingCouple.tsx` draws the figures; `camera.ts` the zoom; `art-manifest.ts` is generated.
 - `src/app/` — the website shell: boot loader (`components/Loader.tsx`, `loader/preload.ts`), cover (`IntroScreen.tsx`),
   controls, guided-mode state machine (`state/storyMachine.ts`), language toggle, soundtrack (`hooks/useSoundtrack.ts`)
+  and the stage layout (`hooks/useStageLayout.ts`: fits the 9:16 frame and places the HUD)
 - `scripts/art/*.mjs` — the art generators (garden, mandap, sprites, characters); `scripts/bake-art.mjs` bakes them to WebP
 - `public/` — baked images (`images/`, `images/rig`, `images/mandap`, `images/sprites`) and the optional `audio/soundtrack.mp3`
 - `tests/` — Vitest unit tests (timeline, rig, preloader, translations, dates, wedding config, story machine)
@@ -62,6 +63,9 @@ Look at them — key frames (60 FPS): 0, 300, 478 (scene 1), 840, 1138 (scene 2)
     - Never toggle `will-change` or mount/unmount big layers mid-story; hide with `visibility`/opacity instead.
     - No Remotion `<Img>` in the website tree (they re-render every frame); `<ArtGate>` exists only for renders, and the
       loader pre-decodes every image before the story starts.
+    - The Player always renders at 1080×1920 (scale 1); `useStageLayout` scales it with one CSS transform from a
+      ResizeObserver, so a resize never shows a frame at the wrong size. The frame is fitted to the small viewport
+      (`svh`), so a phone's sliding address bar never rescales it. Don't hand sizing back to the Player.
     - Measure with `npm run profile`: at `--throttle=2` every scene should hold ~60 fps.
 13. **Fonts.** Bengali text uses Anek Bangla (variable, real weights 100–800); the couple's names use Galada (single weight:
     always `DISPLAY_WEIGHT`). Boxes that clip or mask Bengali text need `BN_PAD` block padding so vowel signs are never cut.

@@ -7,6 +7,7 @@ import { WeddingComposition } from "../../remotion/WeddingComposition";
 import type { WeddingProps } from "../../remotion/props";
 import { usePlayerEvents } from "../hooks/usePlayerEvents";
 import { useSoundtrack } from "../hooks/useSoundtrack";
+import { useStageLayout } from "../hooks/useStageLayout";
 import { useStoryMachine } from "../hooks/useStoryMachine";
 import { IntroScreen } from "./IntroScreen";
 import { LanguageToggle } from "./LanguageToggle";
@@ -22,11 +23,15 @@ const HAS_AUDIO = typeof __HAS_AUDIO__ !== "undefined" && __HAS_AUDIO__;
 const SCENE_HEADING = { awakening: "opening", meeting: "meeting", wedding: "wedding", invitation: "invitation" } as const;
 
 /**
- * The 9:16 website shell: a fixed-ratio frame holding the Remotion Player, with the intro, language toggle and
- * story controls layered above it. Website state lives in a reducer; the animation stays frame-driven inside the Player.
+ * The 9:16 website shell: a fixed-ratio frame holding the Remotion Player and the cover, with the language toggle and
+ * story controls in a HUD over the frame, or in the free bands around it when there is room (tall phones, landscape,
+ * desktop). Website state lives in a reducer; the animation stays frame-driven inside the Player.
  */
 export const ExperienceShell = ({ lang, onLangChange, reducedMotion }: Props) => {
   const playerRef = useRef<PlayerRef>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const roomRef = useRef<HTMLDivElement>(null);
+  useStageLayout(stageRef, roomRef);
   const { state, stateRef, send } = useStoryMachine();
   const { isPlaying, scene } = usePlayerEvents({ playerRef, stateRef, send });
   const [muted, setMuted] = useState(true);
@@ -158,8 +163,18 @@ export const ExperienceShell = ({ lang, onLangChange, reducedMotion }: Props) =>
 
   const tx = t(lang);
   return (
-    <div className="stage">
+    <div className="stage" ref={stageRef}>
+      <div className="stage__room" ref={roomRef} aria-hidden="true" />
+
+      <div className="hud hud--top">
+        <LanguageToggle lang={lang} onChange={onLangChange} />
+        <p className="rotate-hint" lang={lang}>
+          {tx.rotateHint}
+        </p>
+      </div>
+
       <main className="frame" aria-label={tx.storyLabel}>
+        {/* the composition at its own size (scale 1 inside the Player), scaled to the frame by CSS: see useStageLayout */}
         <div className="frame__player">
           <Player
             ref={playerRef}
@@ -179,16 +194,20 @@ export const ExperienceShell = ({ lang, onLangChange, reducedMotion }: Props) =>
             moveToBeginningWhenEnded={false}
             initiallyMuted
             acknowledgeRemotionLicense
-            style={{ width: "100%", height: "100%" }}
+            style={{ width: WIDTH, height: HEIGHT }}
           />
         </div>
-
-        <LanguageToggle lang={lang} onChange={onLangChange} />
 
         {state.phase === "intro" && (
           <IntroScreen lang={lang} onWatch={watch} onExplore={explore} onSkip={skip} />
         )}
 
+        <div className="sr-only" aria-live="polite">
+          {state.phase === "intro" ? "" : tx[SCENE_HEADING[scene]]}
+        </div>
+      </main>
+
+      <div className="hud hud--bottom">
         <StoryControls
           lang={lang}
           phase={state.phase}
@@ -202,11 +221,7 @@ export const ExperienceShell = ({ lang, onLangChange, reducedMotion }: Props) =>
           onReplay={replay}
           onShare={share}
         />
-
-        <div className="sr-only" aria-live="polite">
-          {state.phase === "intro" ? "" : tx[SCENE_HEADING[scene]]}
-        </div>
-      </main>
+      </div>
     </div>
   );
 };
