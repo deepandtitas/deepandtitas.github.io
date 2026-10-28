@@ -142,10 +142,14 @@ const drawOps = (ctx: Canvas2D, ops: readonly DrawOp[], base: Mat, opts: DrawOpt
     const clip = op.clip;
     if (clip) {
       ctx.save();
-      set(ctx, base);
-      ctx.beginPath();
-      ctx.rect(clip.x, clip.y, clip.w, clip.h);
-      ctx.clip();
+      set(ctx, mul(base, clip.m));
+      if ("path" in clip) {
+        ctx.clip(pathFor(clip.path));
+      } else {
+        ctx.beginPath();
+        ctx.rect(clip.rect.x, clip.rect.y, clip.rect.w, clip.rect.h);
+        ctx.clip();
+      }
     }
     set(ctx, mul(base, op.m));
     ctx.globalAlpha = op.alpha;

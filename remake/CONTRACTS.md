@@ -82,15 +82,17 @@ export type Paint =
   | { linear: [x0: number, y0: number, x1: number, y1: number]; stops: [offset: number, color: string][] }
   | { radial: [x0: number, y0: number, r0: number, x1: number, y1: number, r1: number]; stops: [number, string][] };
 export interface Stroke { paint: Paint; width: number; cap?: CanvasLineCap; join?: CanvasLineJoin; dash?: number[]; dashOffset?: number }
+/** A clip region with its own matrix (so it zooms with the camera): a rectangle or SVG path data, in local coordinates under m. */
+export type Clip = { rect: Rect; m: Mat } | { path: string; m: Mat };
 export type DrawOp =
-  /** ART[art] drawn at its manifest rect (x,y,w,h) in local coordinates, under m. clip is in FRAME coordinates. */
-  | { kind: "image"; art: ArtName; m: Mat; alpha: number; clip?: Rect }
+  /** ART[art] drawn at its manifest rect (x,y,w,h) in local coordinates, under m. */
+  | { kind: "image"; art: ArtName; m: Mat; alpha: number; clip?: Clip }
   /** SVG path data in local coordinates under m (fill and/or stroke). */
-  | { kind: "path"; d: string; m: Mat; alpha: number; fill?: Paint; stroke?: Stroke; clip?: Rect }
+  | { kind: "path"; d: string; m: Mat; alpha: number; fill?: Paint; stroke?: Stroke; clip?: Clip }
   /** Circle / ellipse (cheaper than a path for glows and discs). */
-  | { kind: "ellipse"; cx: number; cy: number; rx: number; ry: number; m: Mat; alpha: number; fill: Paint; clip?: Rect }
+  | { kind: "ellipse"; cx: number; cy: number; rx: number; ry: number; m: Mat; alpha: number; fill: Paint; clip?: Clip }
   /** Axis-aligned rectangle (washes, card backgrounds). */
-  | { kind: "rect"; rect: Rect; m: Mat; alpha: number; fill: Paint; radius?: number; clip?: Rect }
+  | { kind: "rect"; rect: Rect; m: Mat; alpha: number; fill: Paint; radius?: number; clip?: Clip }
   /**
    * Group opacity (SVG <g opacity> semantics): children are drawn at full alpha into a pooled offscreen canvas of
    * `bounds` (frame coordinates, rounded out) and composited with `alpha`. Use ONLY where overlapping children make
@@ -165,3 +167,65 @@ Same input props as the old `WeddingProps` (lang, reducedMotion, interactive, gu
 ## Budgets (gates; measured by `scripts/phone.mjs` on the moto g96)
 GPU tile memory ≤ 80 MB in every stretch; 0% out-of-memory tile assignments; 0 checkerboarded draws; 0 transient
 blinks in a recorded play-through; ≈60 fps (p95 frame ≤ 20 ms). Visual parity with the reference stills.
+
+## Scene assembly (wave 2: scenes-a, scenes-b)
+
+### Paint order (canvas, back to front) — assembled by `describeFrame` in src/scene/frame.ts
+1. `paper` art, full frame (always).
+2. Awakening (scenes-a `awakening(beat, ctx)`), drawn while its Sequence would be mounted (beats 0 … awakening end +
+   overlap); its fade-out (old `opacity: 1 - exit` on the scene) is ONE `group` op with full-frame bounds.
+3. **Camera group** — every op below gets `cam = about(CAMERA_FOCUS.x, CAMERA_FOCUS.y, scale(cameraZoom(beat)))`
+   multiplied on the left (`mul(cam, m)`, also for clip matrices and overlay text `m`; hotspot x,y via `apply`):
+   a. garden back (scenes-b `gardenBack`): far plane, sun warmth, path, mid plane, dusk wash, lights;
+   b. meeting arch flowers (while the meeting is mounted);
+   c. wedding back (scenes-b): big glow, mandap structure, gathered arch, diyas, gaze glow;
+   d. **the couple** (scenes-b `couple`): ONE persistent pair for the whole meeting+wedding span from
+      `couplePose(globalBeat, reduced)` — never two pairs, so nothing pops at the scene change; front figure per
+      `front`;
+   e. wedding front sprites: garlands, set-down leaves, the crossing petal;
+   f. the ornament (scenes-a `emblemOps`) and the rising card edge (scenes-a `invitationCard`, id prefix `card-w`);
+   g. garden foreground leaves (scenes-b `gardenForeground`).
+4. Scene headings' gold rules (scenes-a `headings`).
+5. Invitation scene (scenes-a `invitationScene`, its card with id prefix `card-i`).
+6. Atmosphere: `atmosphereSprites(beat, reduced)` (petals + dust), last.
+Overlay (DOM, above the canvas): headings, title/subtitle, card texts, hotspots, map link.
+
+### Builders (pure; called on EVERY frame; same overlay ids every frame)
+```ts
+// scenes-a
+export const awakening: (beat: number, ctx: FrameContext) => FrameOutput;          // scene-local beat (may exceed scene end during overlap)
+export const headings: (globalBeat: number, ctx: FrameContext) => FrameOutput;     // 3 headings: ids heading-opening/meeting/wedding
+export const emblemOps: (x: number, y: number, scale: number, opacity: number, m: Mat) => DrawOp[];
+export const invitationCard: (localBeat: number, opts: { top: number; border: number; idPrefix: string; m: Mat; visible: boolean }, ctx: FrameContext) => FrameOutput;
+export const invitationScene: (beat: number, ctx: FrameContext) => FrameOutput;    // scene-local beat
+// scenes-b
+export const gardenBack: (globalBeat: number, ctx: FrameContext) => DrawOp[];
+export const gardenForeground: (globalBeat: number, ctx: FrameContext) => DrawOp[];
+export const meeting: (beat: number, ctx: FrameContext) => FrameOutput;            // arch flowers + hotspot "wedding"
+export const weddingBack: (beat: number, ctx: FrameContext) => DrawOp[];
+export const weddingFront: (beat: number, ctx: FrameContext) => FrameOutput;      // garlands, leaves, petal, ornament, card edge, hotspot "invitation"
+export const figureOps: (who: "groom" | "bride", props: FigureProps & { paan?: number }) => DrawOp[];
+export const spriteOp: (s: SpriteState, m?: Mat) => DrawOp;                       // image op: m · sprite(x, y, rot, scale, sx)
+```
+Out of its range a builder returns no draw ops but still every overlay id (`opacity: 0` / `visible: false`).
+Overlay ids are prefixed by builder (`aw-…`, `heading-…`, `card-w-…`, `card-i-…`, `hotspot-<action>`, `map-link-w`,
+`map-link-i`); the frame.ts test asserts the id list is identical for every frame.
+
+### Converting the old DOM/SVG/CSS to ops (exact rules)
+- **CSS transform**: an element whose box top-left is B (left/top), with `transform: T` and `transform-origin: O`
+  (relative to the box) maps local box coordinates by `translate(B+O) · T · translate(-(B+O))`, then `translate(B)`
+  for content drawn at the box origin. A child's matrix = parent matrix · child matrix. An `<img>` with `artBox(name)`
+  is the image op at the manifest rect (x,y,w,h are already B and size). Rig parts: `translate(at) · rotate(rot) ·
+  scale(sx,sy) · translate(-pivot)` applied to the part's manifest rect (old partTransform with origin = pivot).
+- **SVG**: `<g transform>` multiplies like CSS; `<path d>` → path op with the same d; `<circle>`/`<ellipse>` →
+  ellipse op; `opacity` on an element multiplies its ops' alpha; a `<g opacity>` with overlapping children → `group`
+  op; `fillOpacity`/`strokeOpacity` → rgba colour; `clipPath` → op `clip: { path, m }`.
+- **CSS radial-gradient(circle at px py, …)** on a W×H box: default size farthest-corner, r = distance from
+  (px,py) to the farthest corner; stop % × r → radial Paint `[px,py,0,px,py,r]`. `border-radius: 50%` boxes → ellipse
+  op with that paint. **linear-gradient(180deg, …)** on a box → linear Paint from (x, top) to (x, bottom).
+- Opacity < 0.002 → skip. `visibility: hidden` → no ops.
+
+### Deliberate differences from the old build (keep a list in remake/notes/differences.md)
+- Faces ease from the meeting's last look into the wedding's over the first 14 wedding beats (story FACE_BLEND):
+  the old build popped there.
+- Atmosphere petals are drawn under the DOM text (canvas below overlay); the old build drew them over card text.

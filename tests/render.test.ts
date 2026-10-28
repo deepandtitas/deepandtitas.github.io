@@ -83,15 +83,25 @@ describe("drawFrame", () => {
     expect(log.some((c) => c[0] === "drawImage" || c[0] === "fillRect")).toBe(false);
   });
 
-  it("clips in frame coordinates before applying m", () => {
-    const log: Call[] = [];
-    drawFrame(mockCtx(log), [{ kind: "image", art, m: translate(100, 100), alpha: 1, clip: { x: 1, y: 2, w: 3, h: 4 } }], opts(2));
-    const names = log.map((c) => c[0]);
+  it("clips with its own matrix before applying the op matrix (rect and path)", () => {
+    const rectLog: Call[] = [];
+    drawFrame(mockCtx(rectLog), [{ kind: "image", art, m: translate(100, 100), alpha: 1, clip: { rect: { x: 1, y: 2, w: 3, h: 4 }, m: translate(7, 8) } }], opts(2));
+    const names = rectLog.map((c) => c[0]);
     const iClip = names.indexOf("clip");
-    expect(log[iClip - 1]).toEqual(["rect", 1, 2, 3, 4]);
-    expect(log.slice(0, iClip).filter((c) => c[0] === "setTransform").pop()).toEqual(["setTransform", 2, 0, 0, 2, 0, 0]);
-    expect(names.indexOf("drawImage")).toBeGreaterThan(iClip);
+    expect(rectLog[iClip - 1]).toEqual(["rect", 1, 2, 3, 4]);
+    expect(rectLog.slice(0, iClip).filter((c) => c[0] === "setTransform").pop()).toEqual(["setTransform", 2, 0, 0, 2, 14, 16]);
+    const after = rectLog.slice(iClip).filter((c) => c[0] === "setTransform");
+    expect(after[0]).toEqual(["setTransform", 2, 0, 0, 2, 200, 200]);
+    expect(names.indexOf("save")).toBeLessThan(iClip);
     expect(names.indexOf("restore")).toBeGreaterThan(names.indexOf("drawImage"));
+
+    const pathLog: Call[] = [];
+    drawFrame(mockCtx(pathLog), [{ kind: "image", art, m: translate(100, 100), alpha: 1, clip: { path: "M0 0L9 9", m: scale(3) } }], opts(1));
+    const pn = pathLog.map((c) => c[0]);
+    const pc = pn.indexOf("clip");
+    expect(pathLog[pc][1]).toMatchObject({ d: "M0 0L9 9" });
+    expect(pathLog.slice(0, pc).filter((c) => c[0] === "setTransform").pop()).toEqual(["setTransform", 3, 0, 0, 3, 0, 0]);
+    expect(pathLog.slice(pc).find((c) => c[0] === "setTransform")).toEqual(["setTransform", 1, 0, 0, 1, 100, 100]);
   });
 
   it("group uses one pooled offscreen canvas and composites with alpha", () => {
