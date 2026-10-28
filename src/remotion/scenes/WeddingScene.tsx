@@ -11,7 +11,7 @@ import { useExperience, useText } from "../experience";
 import { CARD_EDGE_Y, COUPLE, GAZE_POINT, ORNAMENT_POS, ORNAMENT_SCALE } from "../layout";
 import { easeInOut, easeOut, lerp, progress } from "../lib/anim";
 import { useBeat } from "../lib/time";
-import { lerpPt, pendulum, restArm, type PoseWeights, type Pt } from "../rig/motion";
+import { lerpPt, pendulum, type PoseWeights, type Pt } from "../rig/motion";
 import { meetingPose } from "./MeetingScene";
 
 const B = BEATS.wedding;
@@ -27,8 +27,8 @@ const LEAVES = { raise: [56, 106], open: [164, 214], release: [222, 250] } as co
  */
 const EXCHANGE = {
   appear: [250, 272],
-  bride: { stepIn: [266, 288], lift: [284, 298], settle: [298, 312], release: [312, 320], stepBack: [318, 336] },
-  groom: { stepIn: [334, 352], lift: [348, 362], settle: [362, 376], release: [376, 384], stepBack: [382, 400] },
+  bride: { stepIn: [266, 288], lift: [278, 300], settle: [300, 312], release: [312, 332], stepBack: [318, 336] },
+  groom: { stepIn: [334, 352], lift: [342, 364], settle: [364, 376], release: [376, 396], stepBack: [382, 400] },
 } as const;
 /** From this beat the groom is drawn in front (he garlands her); before it, she is in front. */
 const SWAP = 336;
@@ -66,10 +66,17 @@ const basePose = (f: number, reduced: boolean): Pose => {
   const raise = progress(f, LEAVES.raise);
   const open = progress(f, LEAVES.open);
   const holding = f < LEAVES.release[0];
+  // the leaves come down from her face to her chest, then out to her sides
+  const lowerA = progress(f, [LEAVES.open[0], (LEAVES.open[0] + LEAVES.open[1]) / 2]);
+  const lowerB = progress(f, [(LEAVES.open[0] + LEAVES.open[1]) / 2, LEAVES.open[1]]);
+  // after letting the leaves fall, her arms relax to her sides before she takes up the garland
+  const relaxArms = progress(f, [LEAVES.release[0] + 2, X.appear[0]]);
   // — garlands in hand: each holds one until it has been given —
-  const appear = progress(f, [X.appear[0], X.appear[1] - 4]);
-  const brideHas = appear * (1 - progress(f, X.bride.release));
-  const groomHas = appear * (1 - progress(f, X.groom.release));
+  // hands come up to take the garland a little before it appears, over a longer, unhurried move
+  const appear = progress(f, [X.appear[0] - 6, X.appear[1] + 4]);
+  // the giver's hands return to the garland pose as they let go, then lower once the hands are free
+  const brideHas = appear * (1 - progress(f, [X.bride.release[1], X.bride.release[1] + 24]));
+  const groomHas = appear * (1 - progress(f, [X.groom.release[1], X.groom.release[1] + 24]));
   const groomReady = progress(f, X.groom.stepIn);
 
   // — faces —
@@ -101,9 +108,15 @@ const basePose = (f: number, reduced: boolean): Pose => {
     walk: ((COUPLE.brideX - xs.bride) / STEP) * Math.PI + 1.4,
     moving: stepping,
     turn: -0.6 - 0.3 * eyesMeet,
-    arms: holding
-      ? named({ chest: 1 - open, face: veiled, aside: open })
-      : named({ hold: brideHas, namaskar: tableau }),
+    // one continuous blend for the whole scene: chest → veiling her face → leaves lowered aside → (the leaves are
+    // let go) arms relax → the garland in her hands → folded hands. Weight passes from one pose to the next.
+    arms: named({
+      chest: 1 - raise,
+      face: raise * (1 - lowerA),
+      hold: lowerA * (1 - lowerB) + brideHas,
+      aside: lowerB * (1 - relaxArms),
+      namaskar: tableau,
+    }),
     paan: holding ? lerp(0.72, 0.98, raise) - 0.2 * open : 0,
     bow: receiveB * 0.7,
     headTilt: -receiveB * 5,
@@ -125,7 +138,7 @@ interface Exchange {
 }
 
 /** The garland exchange: givers' hands follow the garland's path; afterwards it hangs at the receiver's neck. */
-const exchangeAt = (f: number, reduced: boolean): Exchange => {
+export const exchangeAt = (f: number, reduced: boolean): Exchange => {
   const pose = basePose(f, reduced);
   const X = EXCHANGE;
   const appear = progress(f, X.appear);
@@ -135,21 +148,21 @@ const exchangeAt = (f: number, reduced: boolean): Exchange => {
     const receiver = giver === "bride" ? "groom" : "bride";
     const w = X[giver];
     const R = figurePoints(receiver, pose[receiver]);
-    const G = figurePoints(giver, pose[giver]);
-    const lift = progress(f, w.lift);
-    const settle = progress(f, w.settle);
-    const release = progress(f, w.release);
+    // linear here: each is eased once where it is used
+    const lift = progress(f, w.lift, (t) => t);
+    const settle = progress(f, w.settle, (t) => t);
+    const release = progress(f, w.release, (t) => t);
     const chin = { l: { x: R.neckL.x - 6, y: R.neckL.y - 62 * COUPLE.scale }, r: { x: R.neckR.x + 6, y: R.neckR.y - 62 * COUPLE.scale } };
     const neck = { l: R.neckL, r: R.neckR };
-    // the giver's hands, in composition coordinates, along lift → settle
+    // the giver's hands reach out of their pose to the other's chin, settle the garland at the neck, and return to
+    // the pose as they let go — one blend, so the hands never jump when the reach starts or ends
     if (lift > 0 && release < 1) {
       const giverPose = pose[giver];
       const out = (p: Pt) => toFigure(p, giverPose);
-      // along lift → settle, then back to hanging at rest as the garland is let go
-      const back = easeInOut(release);
-      const hl = lerpPt(out(lerpPt(lerpPt(G.handL, chin.l, easeInOut(lift)), neck.l, easeInOut(settle))), restArm(giver, -1).H, back);
-      const hr = lerpPt(out(lerpPt(lerpPt(G.handR, chin.r, easeInOut(lift)), neck.r, easeInOut(settle))), restArm(giver, 1).H, back);
-      giverPose.arms = { l: hl, r: hr };
+      const base = giverPose.arms as { l: PoseWeights; r: PoseWeights };
+      const mix = easeInOut(lift) * (1 - easeInOut(release));
+      const at = (side: "l" | "r") => out(lerpPt(chin[side], neck[side], easeInOut(settle)));
+      giverPose.arms = { l: { reach: at("l"), mix, base: base.l }, r: { reach: at("r"), mix, base: base.r } };
       giverPose.lean = (giver === "bride" ? -1 : 1) * 5 * bump(f, w.lift[0], w.release[1]);
     }
     // where the garland hangs
