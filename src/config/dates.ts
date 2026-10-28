@@ -14,9 +14,18 @@ const BN_DIGITS = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮"
 
 export const toBengaliDigits = (s: string): string => s.replace(/\d/g, (d) => BN_DIGITS[Number(d)]);
 
+/** Bengali day ordinals as printed on invitations: ১লা, ২রা, ৩রা, ৪ঠা, ৫ই … ১৮ই, ১৯শে … ৩১শে. */
+export const bengaliDay = (d: number): string => {
+  const n = toBengaliDigits(String(d));
+  if (d === 1) return `${n}লা`;
+  if (d === 2 || d === 3) return `${n}রা`;
+  if (d === 4) return `${n}ঠা`;
+  return d <= 18 ? `${n}ই` : `${n}শে`;
+};
+
 export interface FormattedDate {
   weekday: string;
-  /** e.g. "২৫ নভেম্বর ২০২৬" / "25 November 2026" */
+  /** e.g. "২৫শে নভেম্বর ২০২৬" / "25 November 2026" */
   day: string;
 }
 
@@ -30,9 +39,11 @@ export const formatDate = (iso: string, lang: Lang): FormattedDate | null => {
   const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
   const date = new Date(Date.UTC(y, mo - 1, d));
   if (date.getUTCFullYear() !== y || date.getUTCMonth() !== mo - 1 || date.getUTCDate() !== d) return null;
-  const day = `${d} ${MONTHS[lang][mo - 1]} ${y}`;
   return {
     weekday: WEEKDAYS[lang][date.getUTCDay()],
-    day: lang === "bn" ? toBengaliDigits(day) : day,
+    day:
+      lang === "bn"
+        ? `${bengaliDay(d)} ${MONTHS.bn[mo - 1]} ${toBengaliDigits(String(y))}`
+        : `${d} ${MONTHS.en[mo - 1]} ${y}`,
   };
 };

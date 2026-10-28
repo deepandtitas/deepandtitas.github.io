@@ -42,22 +42,24 @@ npm run studio     # Remotion Studio, composition "DeepAndTitasWedding"
 
 ### 1. Wedding details — `src/config/wedding.ts`
 
-Already filled in with the confirmed details:
+Filled in from the printed reception invitation (the source of truth), with spellings kept exactly as printed:
 
 | Field | Value |
 | --- | --- |
-| Wedding | 25 November 2026 (Wednesday) |
-| Reception | 27 November 2026 (Friday), same venue |
-| Address | `15, Raja Shew Box Bagla Ln, Tala, Bidhan Sarani, Kolkata, West Bengal 700002` (kept exactly as provided) |
+| শুভবিবাহ / Wedding | ৮ই অগ্রহায়ণ ১৪৩৩ · 25 November 2026 · Wednesday evening (বুধবার সন্ধ্যায়) |
+| প্রীতিভোজ / Reception | ১০ই অগ্রহায়ণ ১৪৩৩ · 27 November 2026 · Friday evening (শুক্রবার সন্ধ্যায়) |
+| Venue | স্থপতি / **Sthapati** (শম্ভু ঘোষের বাড়ি / House of Sambhu Ghosh) |
+| Address | `15, Raja Shew Box Bagala Lane, Kolkata-700002` · ১৫, রাজা শিউ বক্স বগলা লেন, কলকাতা-২ |
+| Landmark | Tala Post Office / টালা পোস্টঅফিস |
 | Map pin | 22.60760907969931, 88.37628348848713 |
 
-Dates are ISO strings and are rendered in Bengali (with Bengali digits and weekday) or English by `src/config/dates.ts`.
-`events.*.time` and `venueName` are optional: **anything left blank is simply not shown** — there are no placeholders anywhere.
-Add a time (e.g. `"সন্ধ্যা ৭টা"`) or a venue name and it appears on the card automatically.
+Dates are ISO strings rendered by `src/config/dates.ts` (Bengali digits, ordinals like ২৫শে, weekday). Every text field is
+`{ bn, en }`. Anything you leave blank is simply not shown — there are no placeholders anywhere.
 
 The **স্থান দেখুন / View Location** button opens
 `https://www.google.com/maps?q=22.60760907969931,88.37628348848713` in a new tab (`rel="noopener noreferrer"`).
-The coordinates are never rounded; a unit test guards the exact URL.
+The coordinates are never rounded; a unit test guards the exact URL. The pin is in the Tala neighbourhood (about 260 m from
+Tala station), consistent with the card's landmark, but it should be confirmed against the actual venue gate.
 
 ### 2. Wording — `src/config/translations.ts`
 
@@ -94,11 +96,10 @@ Deep and Titas are drawn in exactly one place so they stay identical in every sc
 
 ### 5. Soundtrack — `public/audio/soundtrack.mp3`
 
-The bundled track is a **shehnai wedding piece released under CC0 (public domain)** —
-["Hindu_Wedding_Ceremony_Music" by bobv2 on Freesound](https://freesound.org/people/bobv2/sounds/395024/) —
-trimmed to a steady 50-second excerpt with short fades (details in `public/audio/README.txt`). No attribution is required,
-but it is credited here and there. It is faded in/out and swells through the wedding scene automatically
-(`src/remotion/Soundtrack.tsx`).
+The music is the track supplied by the couple, cut to its first 50 seconds (a soft ~10 s intro, then the steady main
+section, ending where the original dips) with a short fade-in and a 2.5 s fade-out, re-encoded at 160 kbps (~1 MB) so
+it matches the 50-second film and loads quickly on phones. It is faded in/out and swells through the wedding scene
+automatically (`src/remotion/Soundtrack.tsx`). Details are in `public/audio/README.txt`.
 
 To use another track, replace `soundtrack.mp3` (~50 s) with something you have the rights to, and restart `npm run dev`
 (its presence is detected when the server starts).
@@ -175,7 +176,7 @@ npx remotion compositions src/remotion/index.ts     # → DeepAndTitasWedding 30
 
 ## What can still be added
 
-1. **Event times** and a **venue name** (`src/config/wedding.ts`) — optional; they appear on the card as soon as they are filled in.
+1. **Host / family names and phone numbers** from the printed card are deliberately *not* on the public page — say if you want them added.
 2. **Optional:** professionally illustrated character art to replace the procedural SVG rig (see *Replacing the illustrations*).
 3. Review the Bengali wording in `src/config/translations.ts` once more with family.
 

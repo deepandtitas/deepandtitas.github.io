@@ -1,7 +1,10 @@
 /**
- * Editable wedding details. Anything left blank is simply not shown to guests — there are no placeholders.
+ * Editable wedding details. Source of truth: the printed reception invitation ("DEEP RECEPTION.pdf").
+ * Anything left blank is simply not shown to guests — there are no placeholders.
  * Dates are ISO (YYYY-MM-DD) and are rendered in Bengali or English by src/config/dates.ts.
  */
+type Bilingual = { readonly bn: string; readonly en: string };
+
 export const wedding = {
   groom: {
     en: "Deep",
@@ -12,19 +15,41 @@ export const wedding = {
     bn: "তিতাস",
   },
   events: {
-    wedding: { date: "2026-11-25", time: "" },
-    reception: { date: "2026-11-27", time: "" },
+    // শুভবিবাহ — ৮ই অগ্রহায়ণ ১৪৩৩, বুধবার সন্ধ্যায়
+    wedding: {
+      date: "2026-11-25",
+      bengaliDate: "৮ই অগ্রহায়ণ ১৪৩৩",
+      time: { bn: "সন্ধ্যায়", en: "Evening" },
+    },
+    // প্রীতিভোজ (Wedding Reception) — ১০ই অগ্রহায়ণ ১৪৩৩, শুক্রবার সন্ধ্যায়
+    reception: {
+      date: "2026-11-27",
+      bengaliDate: "১০ই অগ্রহায়ণ ১৪৩৩",
+      time: { bn: "সন্ধ্যায়", en: "Evening" },
+    },
   },
-  /** Both events are at the same venue. Left blank until a venue name is confirmed (the address below is shown regardless). */
-  venueName: "",
-  /** Exactly as provided — spelling and punctuation are intentional. */
-  venueAddress: "15, Raja Shew Box Bagla Ln, Tala, Bidhan Sarani, Kolkata, West Bengal 700002",
+  /** Spellings exactly as printed on the invitation (e.g. "Bagala", "বগলা") — do not "correct" them. */
+  venue: {
+    name: { bn: "স্থপতি", en: "Sthapati" },
+    note: { bn: "শম্ভু ঘোষের বাড়ি", en: "House of Sambhu Ghosh" },
+    address: {
+      bn: "১৫, রাজা শিউ বক্স বগলা লেন, কলকাতা-২",
+      en: "15, Raja Shew Box Bagala Lane, Kolkata-700002",
+    },
+    landmark: { bn: "টালা পোস্টঅফিস", en: "Tala Post Office" },
+  },
   /** Exact map pin. Never round or alter these values. */
   mapCoordinates: {
     latitude: 22.60760907969931,
     longitude: 88.37628348848713,
   },
-} as const;
+} as const satisfies {
+  groom: Bilingual;
+  bride: Bilingual;
+  events: Record<string, { date: string; bengaliDate: string; time: Bilingual }>;
+  venue: Record<"name" | "note" | "address" | "landmark", Bilingual>;
+  mapCoordinates: { latitude: number; longitude: number };
+};
 
 export type Wedding = typeof wedding;
 
@@ -38,7 +63,7 @@ export const EVENT_KEYS: readonly EventKey[] = ["wedding", "reception"];
 
 export const hasValue = (v: string): boolean => v.trim().length > 0;
 
-type EventsLike = { events: Record<EventKey, { date: string; time: string }> };
+type EventsLike = { events: Record<EventKey, { date: string }> };
 
 /** Events that have a date (those are the ones shown on the card). */
 export const visibleEvents = (w: EventsLike = wedding): EventKey[] =>

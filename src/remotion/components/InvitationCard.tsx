@@ -61,7 +61,7 @@ const Divider = ({ p }: { p: number }) => (
 );
 
 const Pin = () => (
-  <svg width={52} height={60} viewBox="0 0 52 60" aria-hidden="true">
+  <svg width={48} height={55} viewBox="0 0 52 60" aria-hidden="true">
     <path d="M26 58C10 38 4 30 4 21C4 10 14 2 26 2C38 2 48 10 48 21C48 30 42 38 26 58Z" fill="#f8ecd2" stroke="#f8ecd2" strokeWidth={2} />
     <circle cx={26} cy={21} r={9} fill={SINDOOR} />
   </svg>
@@ -98,9 +98,12 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
   const rise = (p: number) => ({ opacity: p, transform: `translateY(${(1 - p) * 26}px)` });
 
   const events = visibleEvents();
-  const venueName = hasValue(wedding.venueName) ? wedding.venueName : "";
-  const address = hasValue(wedding.venueAddress) ? wedding.venueAddress : "";
-  const hasVenue = Boolean(venueName || address);
+  const venue = wedding.venue;
+  const venueName = venue.name[lang];
+  const venueNote = venue.note[lang];
+  const address = venue.address[lang];
+  const landmark = venue.landmark[lang];
+  const hasVenue = hasValue(venueName) || hasValue(address);
   const eventLabel: Record<EventKey, string> = { wedding: tx.weddingLabel, reception: tx.receptionLabel };
 
   const Label = ({ children }: { children: string }) => (
@@ -123,20 +126,17 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
     const ev = wedding.events[k];
     const d = formatDate(ev.date, lang);
     if (!d) return null;
+    const when = [d.weekday, ev.time[lang]].filter(hasValue).join(", ");
     return (
       <div style={{ textAlign: "center", flex: 1, minWidth: 0 }}>
         <Label>{eventLabel[k]}</Label>
-        <div style={{ fontFamily: fontMain, fontWeight: 600, fontSize: bn ? 52 : 46, lineHeight: 1.15, color: SINDOOR, whiteSpace: "nowrap" }}>
+        <div style={{ fontFamily: fontMain, fontWeight: 600, fontSize: bn ? 43 : 46, lineHeight: 1.2, color: SINDOOR, whiteSpace: "nowrap" }}>
           {d.day}
         </div>
-        <div style={{ fontFamily: fontMain, fontWeight: 400, fontSize: bn ? 38 : 44, lineHeight: 1.3, color: MUTED }}>
-          {d.weekday}
-        </div>
-        {hasValue(ev.time) && (
-          <div style={{ fontFamily: fontMain, fontWeight: 500, fontSize: bn ? 42 : 48, lineHeight: 1.3, color: INK, marginTop: 2 }}>
-            {ev.time}
-          </div>
+        {bn && hasValue(ev.bengaliDate) && (
+          <div style={{ fontFamily: FONT_BN, fontWeight: 400, fontSize: 34, lineHeight: 1.35, color: GOLD_DEEP }}>{ev.bengaliDate}</div>
         )}
+        <div style={{ fontFamily: fontMain, fontWeight: 400, fontSize: bn ? 38 : 42, lineHeight: 1.3, color: MUTED }}>{when}</div>
       </div>
     );
   };
@@ -146,8 +146,8 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
     alignItems: "center",
     justifyContent: "center",
     gap: 28,
-    height: 150,
-    minWidth: 620,
+    height: 136,
+    minWidth: 600,
     padding: "0 64px",
     borderRadius: 75,
     background: SINDOOR,
@@ -249,7 +249,7 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
             fontFamily: fontMain,
             fontStyle: bn ? "normal" : "italic",
             fontWeight: bn ? 600 : 500,
-            fontSize: bn ? 142 : 168,
+            fontSize: bn ? 132 : 156,
             lineHeight: 1.15,
             color: SINDOOR,
             whiteSpace: "nowrap",
@@ -272,7 +272,7 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
             fontStyle: bn ? "normal" : "italic",
             fontWeight: 400,
             fontSize: bn ? 46 : 54,
-            lineHeight: bn ? 1.7 : 1.35,
+            lineHeight: bn ? 1.6 : 1.3,
             color: INK,
           }}
         >
@@ -291,12 +291,22 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
             )}
             {hasVenue && (
               <div style={{ textAlign: "center" }}>
-                <Label>{venueName ? tx.venueLabel : tx.addressLabel}</Label>
-                {venueName && (
-                  <div style={{ fontFamily: fontMain, fontWeight: 600, fontSize: bn ? 48 : 54, lineHeight: 1.25, color: INK }}>{venueName}</div>
+                <Label>{tx.venueLabel}</Label>
+                {hasValue(venueName) && (
+                  <div style={{ fontFamily: fontMain, fontWeight: 600, fontSize: bn ? 46 : 52, lineHeight: 1.2, color: INK }}>
+                    {venueName}
+                    {hasValue(venueNote) && (
+                      <span style={{ fontWeight: 400, fontSize: bn ? 36 : 40, color: MUTED }}>{` (${venueNote})`}</span>
+                    )}
+                  </div>
                 )}
-                {address && (
-                  <div style={{ fontFamily: FONT_EN, fontWeight: 500, fontSize: 42, lineHeight: 1.3, color: INK }}>{address}</div>
+                {hasValue(address) && (
+                  <div style={{ fontFamily: fontMain, fontWeight: 500, fontSize: bn ? 38 : 40, lineHeight: 1.3, color: INK }}>{address}</div>
+                )}
+                {hasValue(landmark) && (
+                  <div style={{ fontFamily: fontMain, fontWeight: 400, fontSize: bn ? 34 : 38, lineHeight: 1.35, color: MUTED }}>
+                    {`${tx.landmarkLabel}: ${landmark}`}
+                  </div>
                 )}
               </div>
             )}
