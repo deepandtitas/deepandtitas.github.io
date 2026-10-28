@@ -1,0 +1,41 @@
+{
+  "name": "deep-and-titas",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Deep & Titas — Bengali wedding invitation built with Remotion",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "studio": "remotion studio src/remotion/index.ts",
+    "render": "remotion render src/remotion/index.ts DeepAndTitasWedding out/deep-and-titas.mp4",
+    "still": "remotion still src/remotion/index.ts DeepAndTitasWedding out/invitation.png --frame=1499"
+  },
+  "dependencies": {
+    "@fontsource/cormorant-garamond": "^5.3.0",
+    "@fontsource/noto-serif-bengali": "^5.3.0",
+    "@remotion/media": "4.0.539",
+    "@remotion/player": "4.0.539",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "remotion": "4.0.539"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@remotion/cli": "4.0.539",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "eslint": "^9.39.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.0.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.72.1",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  }
+}

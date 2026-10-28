@@ -1,0 +1,120 @@
+import { spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { BEATS, sceneDuration } from "../../config/timeline";
+import { Alpana, ALPANA_CENTER } from "../components/Alpana";
+import { GuidedHotspot } from "../components/GuidedHotspot";
+import { Lotus } from "../components/Lotus";
+import { RevealText } from "../components/RevealText";
+import { SceneHeading } from "../components/SceneHeading";
+import { useExperience, useText } from "../experience";
+import { HOTSPOTS } from "../layout";
+import { progress, ramp } from "../lib/anim";
+import { LOTUS_BASE_Y, PATH_T_LOTUS, pathCenterline, pathPoint } from "../lib/path";
+
+const B = BEATS.awakening;
+const SINDOOR = "#781f2b";
+
+/** Scene 1 — the awakening (frames 0–239). Rendered until 90 frames longer so the garden can dissolve over it. */
+export const AwakeningScene = () => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const { reducedMotion, interactive, guided, lang } = useExperience();
+  const tx = useText();
+  const dur = sceneDuration("awakening");
+  const exit = progress(frame, [dur + 8, dur + 58]);
+
+  // the tiny gold light, then the glow that warms the lotus
+  const light = progress(frame, B.lightIn);
+  const lightR = ramp(frame, B.lightIn, 3, 26);
+  const glow = progress(frame, B.lotusBloom);
+
+  // the lotus: in guided mode it is a closed bud from the first frame so there is something to tap
+  const lotusOpacity = guided.enabled ? 1 : progress(frame, [B.lotusBloom[0] - 14, B.lotusBloom[0] + 4]);
+  const bloom = reducedMotion
+    ? progress(frame, [B.lotusBloom[0], B.lotusBloom[0] + 20])
+    : spring({
+        frame: frame - B.lotusBloom[0],
+        fps,
+        durationInFrames: B.lotusBloom[1] - B.lotusBloom[0],
+        config: { damping: 20, stiffness: 55, mass: 1 },
+      });
+
+  // the closing alpana curve that becomes the garden path
+  const pathP = progress(frame, B.pathExtend);
+  const tHead = PATH_T_LOTUS + (1 - PATH_T_LOTUS) * pathP;
+  const head = pathPoint(tHead);
+
+  const showLotusHotspot = interactive && guided.awaiting === "awakening";
+  const showPathHotspot = interactive && guided.awaiting === "meeting";
+
+  return (
+    <div style={{ position: "absolute", inset: 0, opacity: 1 - exit }}>
+      <Alpana frame={reducedMotion ? Math.max(frame, B.alpanaDraw[1]) : frame} />
+
+      <svg width={1080} height={1920} viewBox="0 0 1080 1920" style={{ position: "absolute", inset: 0 }}>
+        {/* light */}
+        {light > 0.001 && (
+          <>
+            <circle cx={ALPANA_CENTER.x} cy={ALPANA_CENTER.y} r={lightR * 5.5} fill="url(#glow-grad)" opacity={light * (1 - glow * 0.35) * 0.9} />
+            <circle cx={ALPANA_CENTER.x} cy={ALPANA_CENTER.y} r={lightR * 0.45} fill="#fff3cf" opacity={light * (1 - lotusOpacity * 0.85)} />
+          </>
+        )}
+        {/* the closing curve */}
+        {pathP > 0.001 && (
+          <>
+            <path d={pathCenterline(PATH_T_LOTUS, tHead)} fill="none" stroke="#e7c97c" strokeWidth={14} strokeLinecap="round" opacity={0.35} />
+            <path d={pathCenterline(PATH_T_LOTUS, tHead)} fill="none" stroke={SINDOOR} strokeWidth={5} strokeLinecap="round" opacity={0.85} />
+            {pathP < 0.999 && <circle cx={head.x} cy={head.y} r={11} fill="#f3d37e" opacity={0.95} />}
+          </>
+        )}
+        <g opacity={lotusOpacity}>
+          <Lotus x={540} y={LOTUS_BASE_Y} bloom={bloom} glow={glow} />
+        </g>
+      </svg>
+
+      <SceneHeading text={tx.opening} frame={frame} fadeIn={B.headingIn} fadeOutAt={dur + 4} />
+
+      <RevealText
+        text={tx.title}
+        frame={frame}
+        range={B.namesReveal}
+        size={lang === "bn" ? 150 : 168}
+        color={SINDOOR}
+        italicEn
+        style={{ top: lang === "bn" ? 356 : 340 }}
+      />
+      <RevealText
+        text={tx.subtitle}
+        frame={frame}
+        range={B.subtitleIn}
+        size={lang === "bn" ? 48 : 56}
+        weight={400}
+        color="#665343"
+        italicEn
+        spacing={lang === "bn" ? "0.04em" : "0.08em"}
+        style={{ top: 566 }}
+      />
+
+      {showLotusHotspot && (
+        <GuidedHotspot
+          x={HOTSPOTS.lotus.x}
+          y={HOTSPOTS.lotus.y}
+          label={tx.hintLotus}
+          ariaLabel={tx.hintLotus}
+          labelPosition="below"
+          onActivate={(e) => guided.onActivate?.("awakening", e)}
+        />
+      )}
+      {showPathHotspot && (
+        <GuidedHotspot
+          x={HOTSPOTS.path.x}
+          y={HOTSPOTS.path.y}
+          size={300}
+          label={tx.hintPath}
+          ariaLabel={tx.hintPath}
+          labelPosition="above"
+          onActivate={(e) => guided.onActivate?.("meeting", e)}
+        />
+      )}
+    </div>
+  );
+};
