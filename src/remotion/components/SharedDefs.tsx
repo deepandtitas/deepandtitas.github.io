@@ -1,12 +1,9 @@
-import { MarigoldDefs } from "./WeddingCouple";
-
 /**
  * Hidden SVG defs referenced by id from every other SVG in the composition
- * (marigold glyphs, flame and glow gradients). Rendered once at the composition root.
+ * (glow and flame gradients used by the alpana, lotus and emblem). Rendered once at the composition root.
  */
 export const SharedDefs = () => (
   <>
-    <MarigoldDefs />
     <svg width={0} height={0} style={{ position: "absolute" }} aria-hidden="true">
       <defs>
         <radialGradient id="glow-grad">

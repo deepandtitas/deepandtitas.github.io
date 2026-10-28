@@ -13,9 +13,9 @@
   --surround-bottom: #1c0e0c;
 
   /* Typography */
-  --font-bn: "Tiro Bangla", "Hind Siliguri", serif;
-  --font-bn-display: "Galada", "Tiro Bangla", serif;
-  --font-bn-ui: "Hind Siliguri", "Tiro Bangla", sans-serif;
+  --font-bn: "Anek Bangla Variable", "Noto Sans Bengali", sans-serif;
+  --font-bn-display: "Galada", "Anek Bangla Variable", serif;
+  --font-bn-ui: "Anek Bangla Variable", "Noto Sans Bengali", sans-serif;
   --font-en: "Cormorant Garamond", "Times New Roman", serif;
 
   /* Controls */

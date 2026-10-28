@@ -4,6 +4,7 @@ export const translations = {
   bn: {
     title: "দীপ ও তিতাস",
     subtitle: "একটি নতুন গল্পের শুরু",
+    coverKicker: "শুভ বিবাহ",
     opening: "শুভ সূচনা",
     meeting: "দুটি পথ, একটি গল্প",
     wedding: "শুভ পরিণয়",
@@ -39,6 +40,7 @@ export const translations = {
   en: {
     title: "Deep & Titas",
     subtitle: "A new story begins",
+    coverKicker: "The Wedding of",
     opening: "An Auspicious Beginning",
     meeting: "Two Paths, One Story",
     wedding: "A Sacred Union",

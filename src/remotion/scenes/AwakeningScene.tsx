@@ -1,22 +1,23 @@
-import { spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { BEATS, sceneDuration } from "../../config/timeline";
 import { Alpana, ALPANA_CENTER } from "../components/Alpana";
 import { GuidedHotspot } from "../components/GuidedHotspot";
 import { Lotus } from "../components/Lotus";
 import { RevealText } from "../components/RevealText";
-import { SceneHeading } from "../components/SceneHeading";
 import { useExperience, useText } from "../experience";
 import { HOTSPOTS } from "../layout";
 import { progress, ramp } from "../lib/anim";
+import { useBeat } from "../lib/time";
 import { LOTUS_BASE_Y, PATH_T_LOTUS, pathCenterline, pathPoint } from "../lib/path";
 
 const B = BEATS.awakening;
 const SINDOOR = "#781f2b";
 
-/** Scene 1 — the awakening (frames 0–239). Rendered until 90 frames longer so the garden can dissolve over it. */
+/** A soft spring settle (closed form, so fractional beats interpolate smoothly): 0 → 1 with a slight overshoot. */
+const settle = (t: number): number => (t <= 0 ? 0 : 1 - Math.exp(-5 * t) * Math.cos(4.2 * t));
+
+/** Scene 1 — the awakening (beats 0–239). Rendered a little longer so the garden can dissolve over it. */
 export const AwakeningScene = () => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const frame = useBeat();
   const { reducedMotion, interactive, guided, lang } = useExperience();
   const tx = useText();
   const dur = sceneDuration("awakening");
@@ -31,12 +32,7 @@ export const AwakeningScene = () => {
   const lotusOpacity = guided.enabled ? 1 : progress(frame, [B.lotusBloom[0] - 14, B.lotusBloom[0] + 4]);
   const bloom = reducedMotion
     ? progress(frame, [B.lotusBloom[0], B.lotusBloom[0] + 20])
-    : spring({
-        frame: frame - B.lotusBloom[0],
-        fps,
-        durationInFrames: B.lotusBloom[1] - B.lotusBloom[0],
-        config: { damping: 20, stiffness: 55, mass: 1 },
-      });
+    : settle((frame - B.lotusBloom[0]) / (B.lotusBloom[1] - B.lotusBloom[0]));
 
   // the closing alpana curve that becomes the garden path
   const pathP = progress(frame, B.pathExtend);
@@ -71,28 +67,26 @@ export const AwakeningScene = () => {
         </g>
       </svg>
 
-      <SceneHeading text={tx.opening} frame={frame} fadeIn={B.headingIn} fadeOutAt={dur + 4} />
-
       <RevealText
         text={tx.title}
         frame={frame}
         range={B.namesReveal}
-        size={lang === "bn" ? 150 : 168}
+        size={lang === "bn" ? 156 : 168}
         color={SINDOOR}
         italicEn
         display
-        style={{ top: lang === "bn" ? 356 : 340 }}
+        style={{ top: lang === "bn" ? 338 : 336 }}
       />
       <RevealText
         text={tx.subtitle}
         frame={frame}
         range={B.subtitleIn}
-        size={lang === "bn" ? 48 : 56}
-        weight={400}
+        size={lang === "bn" ? 50 : 56}
+        weight={lang === "bn" ? 500 : 400}
         color="#665343"
         italicEn
         spacing={lang === "bn" ? "0.04em" : "0.08em"}
-        style={{ top: 566 }}
+        style={{ top: lang === "bn" ? 572 : 570 }}
       />
 
       {showLotusHotspot && (

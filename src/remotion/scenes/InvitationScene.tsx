@@ -1,20 +1,20 @@
-import { useCurrentFrame } from "remotion";
 import { BEATS } from "../../config/timeline";
 import { Emblem } from "../components/Emblem";
 import { CARD, InvitationCard } from "../components/InvitationCard";
 import { CARD_EDGE_Y, ORNAMENT_SCALE } from "../layout";
 import { easeInOut, lerp, progress } from "../lib/anim";
 import { useExperience } from "../experience";
+import { useBeat } from "../lib/time";
 
 const B = BEATS.invitation;
 
 /**
- * Scene 4 — the invitation (frames 1050–1499). The card rises from the edge revealed at the end of the
+ * Scene 4 — the invitation. The card rises from the edge revealed at the end of the
  * wedding scene, the ornament settles into the emblem, then each element appears in turn.
- * The last frame (1499) is the fully revealed card, which stays on screen after playback ends.
+ * The last frame is the fully revealed card, which stays on screen after playback ends.
  */
 export const InvitationScene = () => {
-  const f = useCurrentFrame();
+  const f = useBeat();
   const { reducedMotion } = useExperience();
 
   const e = reducedMotion ? 1 : easeInOut(progress(f, B.cardUnfold));

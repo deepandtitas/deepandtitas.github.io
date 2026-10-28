@@ -1,11 +1,12 @@
 import { Player, type PlayerRef } from "@remotion/player";
 import { useCallback, useEffect, useMemo, useRef, useState, type SyntheticEvent } from "react";
-import { asset, AUDIO_PATH, IMAGES } from "../../config/assets";
+import { asset, AUDIO_PATH } from "../../config/assets";
 import { COVER_FRAME, DURATION, FPS, HEIGHT, LAST_FRAME, WIDTH, type SceneId } from "../../config/timeline";
 import { t, type Lang } from "../../config/translations";
 import { WeddingComposition } from "../../remotion/WeddingComposition";
 import type { WeddingProps } from "../../remotion/props";
 import { usePlayerEvents } from "../hooks/usePlayerEvents";
+import { useSoundtrack } from "../hooks/useSoundtrack";
 import { useStoryMachine } from "../hooks/useStoryMachine";
 import { IntroScreen } from "./IntroScreen";
 import { LanguageToggle } from "./LanguageToggle";
@@ -34,27 +35,7 @@ export const ExperienceShell = ({ lang, onLangChange, reducedMotion }: Props) =>
 
   const base = import.meta.env.BASE_URL;
   const audioSrc = HAS_AUDIO ? asset(AUDIO_PATH, base) : null;
-
-  // Warm the browser cache for the painted layers (and the soundtrack) while the guest reads the intro.
-  useEffect(() => {
-    const images = [IMAGES.paper, IMAGES.grainTile, IMAGES.gardenFar, IMAGES.gardenMid, IMAGES.gardenNear].map((p) => {
-      const img = new Image();
-      img.decoding = "async";
-      img.src = asset(p, base);
-      return img;
-    });
-    // The soundtrack (~1 MB) is only needed once someone presses play: fetch it when the browser is idle, not during load.
-    const warmAudio = () => {
-      if (audioSrc) fetch(audioSrc).catch(() => undefined);
-    };
-    const idle = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
-    const timer = idle ? idle(warmAudio, { timeout: 4000 }) : window.setTimeout(warmAudio, 2500);
-    // keep references until unmount so the browser keeps the decoded images warm
-    return () => {
-      void images.length;
-      if (!idle) window.clearTimeout(timer);
-    };
-  }, [base, audioSrc]);
+  const setSoundMuted = useSoundtrack(playerRef, audioSrc);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -73,9 +54,9 @@ export const ExperienceShell = ({ lang, onLangChange, reducedMotion }: Props) =>
   // Sound begins only after a guest gesture (browsers block it otherwise); the story works fine without it.
   const enableSound = useCallback(() => {
     if (!HAS_AUDIO) return;
-    playerRef.current?.unmute();
+    setSoundMuted(false);
     setMuted(false);
-  }, []);
+  }, [setSoundMuted]);
 
   const watch = useCallback(
     (e: SyntheticEvent) => {
@@ -131,16 +112,9 @@ export const ExperienceShell = ({ lang, onLangChange, reducedMotion }: Props) =>
   const togglePlay = useCallback((e: SyntheticEvent) => playerRef.current?.toggle(e), []);
 
   const toggleMute = useCallback(() => {
-    const p = playerRef.current;
-    if (!p) return;
-    if (p.isMuted()) {
-      p.unmute();
-      setMuted(false);
-    } else {
-      p.mute();
-      setMuted(true);
-    }
-  }, []);
+    setSoundMuted(!muted);
+    setMuted(!muted);
+  }, [muted, setSoundMuted]);
 
   const share = useCallback(async () => {
     const tx = t(lang);
@@ -169,16 +143,17 @@ export const ExperienceShell = ({ lang, onLangChange, reducedMotion }: Props) =>
   );
 
   // Memoised so the Player re-renders the composition only when something it shows actually changes.
+  // The soundtrack is played by the shell (useSoundtrack), not inside the Player.
   const inputProps = useMemo<WeddingProps>(
     () => ({
       lang,
       assetBase: base,
-      audioSrc,
+      audioSrc: null,
       reducedMotion,
       interactive: true,
       guided,
     }),
-    [lang, base, audioSrc, reducedMotion, guided],
+    [lang, base, reducedMotion, guided],
   );
 
   const tx = t(lang);
@@ -211,7 +186,7 @@ export const ExperienceShell = ({ lang, onLangChange, reducedMotion }: Props) =>
         <LanguageToggle lang={lang} onChange={onLangChange} />
 
         {state.phase === "intro" && (
-          <IntroScreen lang={lang} reducedMotion={reducedMotion} onWatch={watch} onExplore={explore} onSkip={skip} />
+          <IntroScreen lang={lang} onWatch={watch} onExplore={explore} onSkip={skip} />
         )}
 
         <StoryControls

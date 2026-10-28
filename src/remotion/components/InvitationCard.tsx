@@ -1,11 +1,10 @@
-import { Img } from "remotion";
-import { IMAGES } from "../../config/assets";
+import { ART } from "../art-manifest";
 import { BEATS } from "../../config/timeline";
 import { formatDate } from "../../config/dates";
 import { EVENT_KEYS, hasValue, mapUrl, visibleEvents, wedding, type EventKey } from "../../config/wedding";
 import { easeInOut, easeOut, progress } from "../lib/anim";
 import { useAsset, useExperience, useText } from "../experience";
-import { bnWeight, FONT_BN, FONT_BN_DISPLAY, FONT_BN_UI, FONT_EN } from "../fonts";
+import { BN_PAD, bnWeight, DISPLAY_WEIGHT, FONT_BN, FONT_BN_DISPLAY, FONT_BN_UI, FONT_EN } from "../fonts";
 
 const INK = "#30251f";
 const MUTED = "#665343";
@@ -98,10 +97,10 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
   // one soft gold glow passing over the names, then it settles for good
   const shimmer = Math.sin(Math.PI * progress(frame, [B.flourish[0] - 10, B.flourish[1] + 30])) * 0.9;
 
+  // opacity + transform only; no will-change toggling (promoting/demoting layers mid-animation makes text flicker)
   const rise = (p: number) => ({
     opacity: p,
-    transform: `translateY(${(1 - p) * 26}px)`,
-    willChange: p > 0 && p < 1 ? ("transform, opacity" as const) : undefined,
+    transform: `translateY(${((1 - p) * 26).toFixed(2)}px)`,
   });
 
   const events = visibleEvents();
@@ -119,6 +118,7 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
         fontFamily: fontUi,
         fontWeight: 600,
         fontSize: bn ? 32 : 36,
+        lineHeight: 1.4,
         letterSpacing: bn ? "0.02em" : "0.2em",
         textTransform: bn ? "none" : "uppercase",
         color: GOLD_DEEP,
@@ -137,13 +137,13 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
     return (
       <div style={{ textAlign: "center", flex: 1, minWidth: 0 }}>
         <Label>{eventLabel[k]}</Label>
-        <div style={{ fontFamily: fontMain, fontWeight: w(600), fontSize: bn ? 43 : 46, lineHeight: 1.2, color: SINDOOR, whiteSpace: "nowrap" }}>
+        <div style={{ fontFamily: fontMain, fontWeight: w(600), fontSize: bn ? 42 : 46, lineHeight: 1.35, color: SINDOOR, whiteSpace: "nowrap" }}>
           {d.day}
         </div>
         {bn && hasValue(ev.bengaliDate) && (
-          <div style={{ fontFamily: FONT_BN, fontWeight: w(400), fontSize: 34, lineHeight: 1.35, color: GOLD_DEEP }}>{ev.bengaliDate}</div>
+          <div style={{ fontFamily: FONT_BN, fontWeight: w(500), fontSize: 33, lineHeight: 1.4, color: GOLD_DEEP }}>{ev.bengaliDate}</div>
         )}
-        <div style={{ fontFamily: fontMain, fontWeight: w(400), fontSize: bn ? 38 : 42, lineHeight: 1.3, color: MUTED }}>{when}</div>
+        <div style={{ fontFamily: fontMain, fontWeight: w(bn ? 500 : 400), fontSize: bn ? 36 : 42, lineHeight: 1.4, color: MUTED }}>{when}</div>
       </div>
     );
   };
@@ -162,7 +162,8 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
     color: "#f8ecd2",
     fontFamily: fontUi,
     fontWeight: 600,
-    fontSize: bn ? 54 : 58,
+    fontSize: bn ? 52 : 58,
+    lineHeight: 1.4,
     letterSpacing: bn ? "0.01em" : "0.06em",
     textDecoration: "none",
     boxShadow: "0 10px 0 rgba(48,37,31,.18)",
@@ -185,14 +186,13 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
       }}
     >
       <style>{CSS}</style>
-      <Img src={url(IMAGES.grainTile)} style={{ position: "absolute", width: 1, height: 1, opacity: 0 }} />
       <div
         style={{
           position: "absolute",
           inset: 0,
-          backgroundImage: `url("${url(IMAGES.grainTile)}")`,
-          backgroundSize: "256px 256px",
-          opacity: 0.3,
+          backgroundImage: `url("${url(ART.paper.src)}")`,
+          backgroundSize: "cover",
+          opacity: 0.55,
           pointerEvents: "none",
         }}
       />
@@ -248,8 +248,9 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
             ...rise(heading),
             fontFamily: fontMain,
             fontWeight: w(600),
-            fontSize: bn ? 62 : 54,
-            letterSpacing: bn ? "0.04em" : "0.2em",
+            fontSize: bn ? 60 : 54,
+            lineHeight: 1.4,
+            letterSpacing: bn ? "0.01em" : "0.2em",
             textTransform: bn ? "none" : "uppercase",
             color: SINDOOR,
           }}
@@ -262,9 +263,11 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
             ...rise(names),
             fontFamily: fontNames,
             fontStyle: bn ? "normal" : "italic",
-            fontWeight: w(bn ? 600 : 500),
-            fontSize: bn ? 132 : 156,
-            lineHeight: 1.15,
+            fontWeight: bn ? DISPLAY_WEIGHT : 500,
+            fontSize: bn ? 134 : 156,
+            lineHeight: 1.3,
+            padding: `${BN_PAD} 0.2em`,
+            margin: `-${BN_PAD} 0`,
             color: SINDOOR,
             whiteSpace: "nowrap",
             textShadow: `0 0 ${30 * shimmer}px rgba(233,201,126,${0.9 * shimmer})`,
@@ -284,9 +287,9 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
             maxWidth: 740,
             fontFamily: fontMain,
             fontStyle: bn ? "normal" : "italic",
-            fontWeight: w(400),
-            fontSize: bn ? 46 : 54,
-            lineHeight: bn ? 1.6 : 1.3,
+            fontWeight: w(bn ? 500 : 400),
+            fontSize: bn ? 44 : 54,
+            lineHeight: bn ? 1.55 : 1.3,
             color: INK,
           }}
         >
@@ -307,18 +310,18 @@ export const InvitationCard = ({ frame, top, border = 1 }: { frame: number; top:
               <div style={{ textAlign: "center" }}>
                 <Label>{tx.venueLabel}</Label>
                 {hasValue(venueName) && (
-                  <div style={{ fontFamily: fontMain, fontWeight: w(600), fontSize: bn ? 46 : 52, lineHeight: 1.2, color: INK }}>
+                  <div style={{ fontFamily: fontMain, fontWeight: w(600), fontSize: bn ? 44 : 52, lineHeight: 1.35, color: INK }}>
                     {venueName}
                     {hasValue(venueNote) && (
-                      <span style={{ fontWeight: w(400), fontSize: bn ? 36 : 40, color: MUTED }}>{` (${venueNote})`}</span>
+                      <span style={{ fontWeight: w(bn ? 500 : 400), fontSize: bn ? 34 : 40, color: MUTED }}>{` (${venueNote})`}</span>
                     )}
                   </div>
                 )}
                 {hasValue(address) && (
-                  <div style={{ fontFamily: fontMain, fontWeight: w(500), fontSize: bn ? 38 : 40, lineHeight: 1.3, color: INK }}>{address}</div>
+                  <div style={{ fontFamily: fontMain, fontWeight: w(500), fontSize: bn ? 36 : 40, lineHeight: 1.4, color: INK }}>{address}</div>
                 )}
                 {hasValue(landmark) && (
-                  <div style={{ fontFamily: fontMain, fontWeight: w(400), fontSize: bn ? 34 : 38, lineHeight: 1.35, color: MUTED }}>
+                  <div style={{ fontFamily: fontMain, fontWeight: w(bn ? 500 : 400), fontSize: bn ? 33 : 38, lineHeight: 1.4, color: MUTED }}>
                     {`${tx.landmarkLabel}: ${landmark}`}
                   </div>
                 )}

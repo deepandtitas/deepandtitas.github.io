@@ -1,50 +1,197 @@
-import { useCurrentFrame } from "remotion";
-import { BEATS, SCENES, sceneDuration } from "../../config/timeline";
+import { BEATS, SCENE_BEATS, sceneDuration } from "../../config/timeline";
+import { Sprite } from "../components/Art";
 import { Emblem } from "../components/Emblem";
 import { MandapArch, MandapDiyas, MandapStructure } from "../components/FloralMandap";
+import { Garland } from "../components/Garland";
 import { GlowDisc, Layer } from "../components/Layer";
 import { GuidedHotspot } from "../components/GuidedHotspot";
 import { InvitationCard } from "../components/InvitationCard";
-import { SceneHeading } from "../components/SceneHeading";
-import { Bride, Groom, PaanLeaf, restHand } from "../components/WeddingCouple";
+import { Bride, figurePoints, Groom, type FigureProps } from "../components/WeddingCouple";
 import { useExperience, useText } from "../experience";
 import { CARD_EDGE_Y, COUPLE, GAZE_POINT, ORNAMENT_POS, ORNAMENT_SCALE } from "../layout";
 import { easeInOut, easeOut, lerp, progress } from "../lib/anim";
+import { useBeat } from "../lib/time";
+import { lerpPt, pendulum, restArm, type PoseWeights, type Pt } from "../rig/motion";
+import { meetingPose } from "./MeetingScene";
 
 const B = BEATS.wedding;
+const LAST = sceneDuration("wedding") - 1;
+const STEP = 58;
 
-/** Frames (scene-local) of the betel-leaf sequence: carried → raised to the face → opened aside → set down. */
-const LEAVES = { raise: [56, 106], open: [164, 214], release: [220, 252] } as const;
+/** Scene-local beats of the শুভদৃষ্টি: leaves raised to veil her face → opened aside as their eyes meet → set down. */
+const LEAVES = { raise: [56, 106], open: [164, 214], release: [222, 250] } as const;
 
-/** The two leaves leaving her hands (hanging from the fingers, as the rig shows them) and settling flat on the floor. */
-const SetDownLeaves = ({ t }: { t: number }) => {
-  const s = COUPLE.scale;
+/**
+ * মালাবদল, one after the other: she garlands him, then he garlands her. Each giver steps in, raises the garland to
+ * the other's face, settles it around the neck, lets go, and steps back.
+ */
+const EXCHANGE = {
+  appear: [250, 272],
+  bride: { stepIn: [266, 288], lift: [284, 298], settle: [298, 312], release: [312, 320], stepBack: [318, 336] },
+  groom: { stepIn: [334, 352], lift: [348, 362], settle: [362, 376], release: [376, 384], stepBack: [382, 400] },
+} as const;
+/** From this beat the groom is drawn in front (he garlands her); before it, she is in front. */
+const SWAP = 336;
+
+const bump = (f: number, a: number, b: number) => Math.sin(Math.PI * progress(f, [a, b], (t) => t));
+
+const SIZE = 22 * COUPLE.scale;
+
+type Side = { l: PoseWeights | Pt; r: PoseWeights | Pt };
+const named = (w: PoseWeights): Side => ({ l: w, r: w });
+const toFigure = (p: Pt, fig: { x: number; y: number; scale?: number }): Pt => ({ x: (p.x - fig.x) / (fig.scale ?? 1), y: (p.y - fig.y) / (fig.scale ?? 1) });
+
+interface Pose {
+  groom: FigureProps;
+  bride: FigureProps & { paan: number };
+}
+
+/** Both figures at a scene-local beat, before the garland exchange moves their hands. */
+const basePose = (f: number, reduced: boolean): Pose => {
+  const start = meetingPose(330, reduced); // the meeting scene's final tableau
+  const X = EXCHANGE;
+  // stepping in and back for each half of the exchange
+  const xAt = (g: number) => {
+    const bi = progress(g, X.bride.stepIn) * (1 - progress(g, X.bride.stepBack));
+    const gi = progress(g, X.groom.stepIn) * (1 - progress(g, X.groom.stepBack));
+    return { groom: COUPLE.groomX + bi * 30 + gi * 70, bride: COUPLE.brideX - bi * 70 - gi * 30 };
+  };
+  const xs = xAt(f);
+  const prev = xAt(f - 1);
+  const stepping = reduced ? 0 : Math.min(1, Math.abs(xs.groom - prev.groom) * 0.6 + Math.abs(xs.bride - prev.bride) * 0.6);
+
+  // — groom: relaxes from his greeting, turns to her —
+  const relax = 1 - progress(f, [8, 40]);
+  // — bride: the betel leaves —
+  const raise = progress(f, LEAVES.raise);
+  const open = progress(f, LEAVES.open);
+  const holding = f < LEAVES.release[0];
+  // — garlands in hand: each holds one until it has been given —
+  const appear = progress(f, [X.appear[0], X.appear[1] - 4]);
+  const brideHas = appear * (1 - progress(f, X.bride.release));
+  const groomHas = appear * (1 - progress(f, X.groom.release));
+  const groomReady = progress(f, X.groom.stepIn);
+
+  // — faces —
+  const veiled = raise * (1 - open);
+  const eyesMeet = progress(f, [LEAVES.open[0] + 16, LEAVES.open[1] + 6]);
+  const joy = progress(f, [LEAVES.open[0] + 26, LEAVES.open[1] + 40]);
+  const tableau = progress(f, B.tableau);
+  const receiveG = bump(f, X.bride.lift[0], X.bride.release[1]);
+  const receiveB = bump(f, X.groom.lift[0], X.groom.release[1]);
+
+  const groom: FigureProps = {
+    ...start.groom,
+    x: xs.groom,
+    t: f + 330,
+    vel: (xs.groom - prev.groom) / COUPLE.scale,
+    walk: ((xs.groom - COUPLE.groomX) / STEP) * Math.PI,
+    moving: stepping,
+    turn: 0.85,
+    arms: named({ namaskar: relax * (1 - appear) + tableau, low: groomHas * (1 - groomReady), hold: groomHas * groomReady }),
+    bow: receiveG * 0.7,
+    headTilt: receiveG * 5,
+    face: { gaze: 0.9, look: 0.12 + receiveG * 0.3 + bump(f, 280, 330) * 0.1, smile: 0.35 + joy * 0.45, blush: joy * 0.25 },
+  };
+  const bride: Pose["bride"] = {
+    ...start.bride,
+    x: xs.bride,
+    t: f + 330,
+    vel: (xs.bride - prev.bride) / COUPLE.scale,
+    walk: ((COUPLE.brideX - xs.bride) / STEP) * Math.PI + 1.4,
+    moving: stepping,
+    turn: -0.6 - 0.3 * eyesMeet,
+    arms: holding
+      ? named({ chest: 1 - open, face: veiled, aside: open })
+      : named({ hold: brideHas, namaskar: tableau }),
+    paan: holding ? lerp(0.72, 0.98, raise) - 0.2 * open : 0,
+    bow: receiveB * 0.7,
+    headTilt: -receiveB * 5,
+    face: {
+      gaze: -0.9 * eyesMeet - 0.3,
+      look: lerp(0.55, 0, eyesMeet) + receiveB * 0.3,
+      smile: 0.15 + joy * 0.55,
+      blush: 0.3 + joy * 0.5,
+      close: veiled * 0.35,
+    },
+  };
+  return { groom, bride };
+};
+
+interface Exchange {
+  pose: Pose;
+  /** Garland anchors (composition coordinates) and swing. */
+  garlands: { a: Pt; b: Pt; sag: number; swing: number; opacity: number; seed: number }[];
+}
+
+/** The garland exchange: givers' hands follow the garland's path; afterwards it hangs at the receiver's neck. */
+const exchangeAt = (f: number, reduced: boolean): Exchange => {
+  const pose = basePose(f, reduced);
+  const X = EXCHANGE;
+  const appear = progress(f, X.appear);
+  const garlands: Exchange["garlands"] = [];
+
+  const give = (giver: "bride" | "groom") => {
+    const receiver = giver === "bride" ? "groom" : "bride";
+    const w = X[giver];
+    const R = figurePoints(receiver, pose[receiver]);
+    const G = figurePoints(giver, pose[giver]);
+    const lift = progress(f, w.lift);
+    const settle = progress(f, w.settle);
+    const release = progress(f, w.release);
+    const chin = { l: { x: R.neckL.x - 6, y: R.neckL.y - 62 * COUPLE.scale }, r: { x: R.neckR.x + 6, y: R.neckR.y - 62 * COUPLE.scale } };
+    const neck = { l: R.neckL, r: R.neckR };
+    // the giver's hands, in composition coordinates, along lift → settle
+    if (lift > 0 && release < 1) {
+      const giverPose = pose[giver];
+      const out = (p: Pt) => toFigure(p, giverPose);
+      // along lift → settle, then back to hanging at rest as the garland is let go
+      const back = easeInOut(release);
+      const hl = lerpPt(out(lerpPt(lerpPt(G.handL, chin.l, easeInOut(lift)), neck.l, easeInOut(settle))), restArm(giver, -1).H, back);
+      const hr = lerpPt(out(lerpPt(lerpPt(G.handR, chin.r, easeInOut(lift)), neck.r, easeInOut(settle))), restArm(giver, 1).H, back);
+      giverPose.arms = { l: hl, r: hr };
+      giverPose.lean = (giver === "bride" ? -1 : 1) * 5 * bump(f, w.lift[0], w.release[1]);
+    }
+    // where the garland hangs
+    const H = figurePoints(giver, pose[giver]);
+    const placed = settle >= 1;
+    const a = placed ? R.neckL : H.handL;
+    const b = placed ? R.neckR : H.handR;
+    const sag = placed ? lerp(60, 118, easeOut(release)) * COUPLE.scale : lerp(64, 46, lift) * COUPLE.scale;
+    const swing = reduced ? 0 : pendulum(f - w.release[0], 9) + (placed ? 0 : Math.sin((f + (giver === "bride" ? 0 : 9)) * 0.21) * 3 * (1 - lift));
+    garlands.push({ a, b, sag, swing, opacity: appear, seed: giver === "bride" ? 0 : 3 });
+  };
+  give("bride");
+  give("groom");
+  return { pose, garlands };
+};
+
+/** The two leaves leaving her hands and settling flat on the floor beside her. */
+const SetDownLeaves = ({ f, reduced }: { f: number; reduced: boolean }) => {
+  const t = progress(f, LEAVES.release, (u) => u);
+  if (t <= 0) return null;
+  const at = basePose(LEAVES.release[0] - 0.5, reduced).bride;
+  const P = figurePoints("bride", at);
   const fall = t * t;
-  const flat = progress(t, [0.7, 1], (u) => u);
   return (
     <>
-      {([-1, 1] as const).map((side) => {
-        const hand = restHand(side);
-        const sx = COUPLE.brideX + hand.x * s;
-        const sy = COUPLE.y + hand.y * s;
-        const ex = COUPLE.brideX + side * 128 * s;
-        const ey = COUPLE.y + 26;
+      {(
+        [
+          [P.handL, P.handAngL, -1],
+          [P.handR, P.handAngR, 1],
+        ] as [Pt, number, number][]
+      ).map(([h, ang, side]) => {
+        const ex = COUPLE.brideX + side * 120 * COUPLE.scale;
+        const ey = COUPLE.y + 22;
         const sway = Math.sin(t * Math.PI * 3) * (1 - t);
-        const x = lerp(sx, ex, easeOut(t)) + sway * 16;
-        const y = lerp(sy, ey, fall);
-        const ang = lerp(side * 168, side * 84, easeOut(t)) + sway * 16;
-        return (
-          <g key={side} transform={`translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${ang.toFixed(1)}) scale(${s} ${(s * (1 - 0.6 * flat)).toFixed(3)})`}>
-            <PaanLeaf />
-          </g>
-        );
+        const x = lerp(h.x, ex, easeOut(t)) + sway * 16;
+        const y = lerp(h.y, ey, fall);
+        const rot = lerp(ang + 90 + side * 6, side * 84, easeOut(t)) + sway * 16;
+        return <Sprite key={side} name="paan" x={x} y={y} rot={rot} scale={0.72 * COUPLE.scale} />;
       })}
     </>
   );
 };
-const LAST = sceneDuration("wedding") - 1;
-
-const bump = (f: number, a: number, b: number) => Math.sin(Math.PI * progress(f, [a, b], (t) => t));
 
 /** Position of the drifting petal: crosses from the left, then settles down the centre between the couple. */
 const petalAt = (t: number) => {
@@ -57,38 +204,23 @@ const petalAt = (t: number) => {
 };
 
 /**
- * Scene 3 — the sacred union (frames 570–1049). Continues exactly from the meeting scene's final tableau.
- * Order of events follows Bengali custom: শুভদৃষ্টি (the lowered betel leaves, eyes meet) → মালাবদল (garlands).
+ * Scene 3 — the sacred union. Continues exactly from the meeting scene's final tableau.
+ * Bengali order: শুভদৃষ্টি (the betel leaves lowered, eyes meet) → মালাবদল (garlands exchanged).
  * It ends with a petal that turns into the gold ornament and reveals the edge of the invitation card.
  */
 export const WeddingScene = () => {
-  const f = useCurrentFrame();
-  const g = f + SCENES.wedding.start;
+  const f = useBeat();
+  const g = f + SCENE_BEATS.wedding.start;
   const { reducedMotion, interactive, guided } = useExperience();
   const tx = useText();
 
   const build = progress(f, B.mandapBuild);
   const lights = progress(f, B.diyasLight);
-
-  // — hands and gaze —
-  // Groom: relaxes from his greeting. Bride: still carries the two betel leaves between her palms (as she did on
-  // arrival), raises them to veil her face, opens them aside once the groom looks, and sets them on the floor.
-  const namaskar = 1 - progress(f, [8, 40]);
-  const raise = progress(f, LEAVES.raise);
-  const open = progress(f, LEAVES.open);
-  const brideFace = raise * (1 - open);
-  const brideNamaskar = 1 - raise;
-  const release = progress(f, LEAVES.release, (t) => t);
-  const garlandHold = progress(f, [250, 282]) * (1 - progress(f, [322, 346]));
-  const held = progress(f, [254, 280]) * (1 - progress(f, [290, 304]));
-  const worn = progress(f, [288, 324], easeOut);
-  const bow = bump(f, 286, 322) * 5;
-  const brideLook = 0.4 * (1 - progress(f, [LEAVES.open[0] + 24, LEAVES.open[1] + 22]));
-  const brideTurn = -0.55 - 0.35 * progress(f, [LEAVES.open[0] + 14, LEAVES.open[1]]);
+  const { pose, garlands } = exchangeAt(f, reducedMotion);
 
   // — light —
   const meet = bump(f, LEAVES.open[0] + 22, LEAVES.open[1] + 52) * 0.6;
-  const peak = Math.pow(bump(f, B.peak[0], B.peak[1] + 30), 1.4) * 0.95;
+  const peak = Math.pow(bump(f, B.peak[0], B.peak[1] + 30), 1.4) * 0.9;
   const settle = progress(f, [B.tableau[0], B.tableau[1] + 20]) * 0.22;
   const glow = Math.max(meet * 0.5, peak, settle, lights * 0.32);
 
@@ -99,62 +231,32 @@ export const WeddingScene = () => {
   const inScene = f <= LAST;
   const edge = progress(f, B.cardEdge);
   const cardTop = lerp(1920, CARD_EDGE_Y, easeInOut(edge));
-  const petalFill = hp < 0.8 ? "#f0a936" : "#d7ad58";
+
+  const groomFirst = f < SWAP;
+  const figures = groomFirst
+    ? [<Groom key="g" {...pose.groom} />, <Bride key="b" {...pose.bride} />]
+    : [<Bride key="b" {...pose.bride} />, <Groom key="g" {...pose.groom} />];
 
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      <SceneHeading text={tx.wedding} frame={f} fadeIn={B.headingIn} fadeOutAt={B.tableau[0] + 20} tone="light" />
-
       {/* warm lamplight and the moment their eyes meet: GPU-composited glows */}
-      <GlowDisc x={540} y={1090} r={760} opacity={glow} />
+      <GlowDisc x={540} y={1040} r={760} opacity={glow} />
+
+      <MandapStructure build={Math.round(build * 400) / 400} />
+      <MandapArch gather={1} />
+      <MandapDiyas build={build} lights={lights} time={g} />
       <GlowDisc x={GAZE_POINT.x} y={GAZE_POINT.y + 10} r={230} opacity={meet} />
 
-      {/* the mandap, in layers that change at different rates */}
-      <Layer>
-        <MandapStructure build={build} />
-        <MandapArch gather={1} />
-      </Layer>
+      {figures}
+      {garlands.map((gl, i) => (
+        <Garland key={i} a={gl.a} b={gl.b} sag={gl.sag} swing={gl.swing} size={SIZE} opacity={gl.opacity} seed={gl.seed} />
+      ))}
+      <SetDownLeaves f={f} reduced={reducedMotion} />
 
-      <Layer>
-        <MandapDiyas build={build} lights={lights} time={g} />
-        <Groom
-          x={COUPLE.groomX}
-          y={COUPLE.y}
-          scale={COUPLE.scale}
-          turn={0.85}
-          pose={{ namaskar, hold: garlandHold }}
-          garlandHeld={held}
-          garlandWorn={worn}
-          headTilt={bow}
-          lookDown={0.08 + 0.25 * bump(f, 286, 322)}
-        />
-        <Bride
-          x={COUPLE.brideX}
-          y={COUPLE.y}
-          scale={COUPLE.scale}
-          turn={brideTurn}
-          pose={{ namaskar: brideNamaskar, face: brideFace, hold: garlandHold }}
-          paan={release <= 0}
-          garlandHeld={held}
-          garlandWorn={worn}
-          headTilt={-bow}
-          lookDown={brideLook + 0.25 * bump(f, 286, 322)}
-        />
-
-        {/* the betel leaves, set down on the floor beside her */}
-        {release > 0 && <SetDownLeaves t={release} />}
-
-        {/* petal → gold ornament */}
-        {inScene && hp > 0 && (
-          <g
-            transform={`translate(${petal.x.toFixed(1)} ${petal.y.toFixed(1)}) rotate(${petal.rot.toFixed(1)}) scale(${lerp(26, 34, hp)} ${lerp(40, 52, hp)})`}
-            opacity={1 - morph}
-          >
-            <path d="M0 -1C0.95 -0.7 0.9 0.5 0 1C-0.9 0.5 -0.95 -0.7 0 -1Z" fill={petalFill} stroke="#8f4a14" strokeWidth={0.06} />
-            <path d="M0 -0.8V0.7" stroke="#30251f" strokeOpacity={0.3} strokeWidth={0.04} />
-          </g>
-        )}
-      </Layer>
+      {/* petal → gold ornament */}
+      {inScene && hp > 0 && (
+        <Sprite name="petal-marigold" x={petal.x} y={petal.y} rot={petal.rot} scale={lerp(1.3, 1.7, hp)} opacity={1 - morph} />
+      )}
 
       {inScene && edge > 0 && (
         <>

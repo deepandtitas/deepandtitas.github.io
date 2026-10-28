@@ -1,4 +1,4 @@
-import { createContext, useContext } from "react";
+import { createContext, useCallback, useContext } from "react";
 import { staticFile } from "remotion";
 import { asset } from "../config/assets";
 import { t, type Dictionary } from "../config/translations";
@@ -14,7 +14,7 @@ export const resolveAsset = (path: string, assetBase: string | null): string =>
 
 export const useAsset = (): ((path: string) => string) => {
   const { assetBase } = useExperience();
-  return (path) => resolveAsset(path, assetBase);
+  return useCallback((path: string) => resolveAsset(path, assetBase), [assetBase]);
 };
 
 export const useText = (): Dictionary => t(useExperience().lang);

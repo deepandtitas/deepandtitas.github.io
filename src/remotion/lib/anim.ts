@@ -36,3 +36,15 @@ export const seeded = (seed: number): number => {
   const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453123;
   return x - Math.floor(x);
 };
+
+/** Multi-stop interpolation with each segment eased in and out, so motion never starts or stops abruptly. */
+export const smoothKeyframes = (frame: number, inputs: number[], outputs: number[]): number => {
+  if (frame <= inputs[0]) return outputs[0];
+  for (let i = 1; i < inputs.length; i++) {
+    if (frame <= inputs[i]) {
+      const t = (frame - inputs[i - 1]) / (inputs[i] - inputs[i - 1]);
+      return lerp(outputs[i - 1], outputs[i], easeInOut(t));
+    }
+  }
+  return outputs[outputs.length - 1];
+};

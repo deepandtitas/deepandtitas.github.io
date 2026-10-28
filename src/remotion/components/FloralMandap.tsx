@@ -1,252 +1,141 @@
-import { MEET_Y } from "../lib/path";
-import { easeOut, lerp, progress, seeded } from "../lib/anim";
 import { memo } from "react";
-import { Diya } from "./Diya";
-
-const INK = "#30251f";
-const GOLD = "#c49a52";
-const SINDOOR = "#781f2b";
+import { ART, type ArtName } from "../art-manifest";
+import { easeOut, lerp, progress, seeded } from "../lib/anim";
+import { MEET_Y } from "../lib/path";
+import { Art, SpriteField, type SpriteState } from "./Art";
 
 /** Geometry shared by the meeting scene (gathering flowers) and the wedding scene (finished mandap). */
 export const MANDAP = {
   cx: 540,
   baseY: MEET_Y,
   postX: [205, 875] as const,
-  archCy: 700,
+  archCy: 650,
   archRx: 330,
   archRy: 235,
   /** Centre of the gathered flowers — where the guided hotspot sits. */
-  hotspot: { x: 540, y: 560 },
+  hotspot: { x: 540, y: 510 },
 } as const;
 
-const ARCH_COUNT = 36;
+const ARCH_COUNT = 34;
 
 const archPoint = (i: number) => {
   const a = Math.PI - (i / (ARCH_COUNT - 1)) * Math.PI;
-  return {
-    x: MANDAP.cx + MANDAP.archRx * Math.cos(a),
-    y: MANDAP.archCy - MANDAP.archRy * Math.sin(a),
-  };
+  return { x: MANDAP.cx + MANDAP.archRx * Math.cos(a), y: MANDAP.archCy - MANDAP.archRy * Math.sin(a) - 8 };
 };
 
-const Marigold = ({ x, y, r, variant, rot = 0 }: { x: number; y: number; r: number; variant: number; rot?: number }) => (
-  <use
-    href={variant % 3 === 1 ? "#mg-b" : "#mg-a"}
-    transform={`translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${(r / 20).toFixed(3)}) rotate(${rot})`}
-  />
-);
+/** Flowering bushes in the garden (composition coordinates) where the arch flowers rise from. */
+const BUSHES = [
+  { x: 190, y: 1010 },
+  { x: 40, y: 1150 },
+  { x: 890, y: 1000 },
+  { x: 1050, y: 1120 },
+] as const;
+
+/** An image revealed by sliding inside a clip, so only a transform changes (no repaint of the art). */
+const Reveal = ({ name, p, from }: { name: ArtName; p: number; from: "bottom" | "top" }) => {
+  const a = ART[name];
+  const off = (1 - p) * a.h * (from === "bottom" ? 1 : -1);
+  return (
+    <div style={{ position: "absolute", left: a.x, top: a.y, width: a.w, height: a.h, overflow: "hidden", visibility: p > 0.001 ? "visible" : "hidden" }}>
+      <Art name={name} moving style={{ left: 0, top: 0, transform: `translateY(${off.toFixed(1)}px)` }} />
+    </div>
+  );
+};
+
+/**
+ * The mandap, built from baked parts during the first seconds of the wedding scene: posts rise, the canopy and valance
+ * open, the marigold strings drop. Every motion is a transform or opacity of a pre-decoded image.
+ */
+export const MandapStructure = memo(function MandapStructure({ build }: { build: number }) {
+  const posts = easeOut(progress(build, [0, 0.55], (t) => t));
+  const dome = progress(build, [0.12, 0.62]);
+  const valance = progress(build, [0.3, 0.72]);
+  const strings = progress(build, [0.5, 1]);
+  const floor = progress(build, [0, 0.6]);
+  const domeA = ART["mandap-dome"];
+  const valA = ART["mandap-valance"];
+  return (
+    <div style={{ position: "absolute", inset: 0 }}>
+      <Art name="mandap-floor" style={{ opacity: floor }} />
+      <Art
+        name="mandap-dome"
+        moving
+        style={{
+          opacity: dome,
+          transformOrigin: `${domeA.w / 2}px ${domeA.h}px`,
+          transform: `scale(${lerp(0.86, 1, dome).toFixed(4)})`,
+        }}
+      />
+      <Reveal name="mandap-strings" p={strings} from="top" />
+      <Art
+        name="mandap-valance"
+        moving
+        style={{ opacity: valance, transformOrigin: `${valA.w / 2}px 0px`, transform: `scaleX(${lerp(0.6, 1, valance).toFixed(4)})` }}
+      />
+      <Reveal name="mandap-post-l" p={posts} from="bottom" />
+      <Reveal name="mandap-post-r" p={posts} from="bottom" />
+      {(["mandap-leaves-l", "mandap-leaves-r"] as const).map((n) => (
+        <Art key={n} name={n} moving style={{ opacity: floor, transformOrigin: "50% 100%", transform: `scale(${lerp(0.7, 1, floor).toFixed(4)})` }} />
+      ))}
+    </div>
+  );
+});
+
+/**
+ * The arch of marigolds above the couple. The flowers do not exist until `gather` begins: each one appears in a
+ * flowering bush of the garden and flies up into its place in the arch, one after another.
+ */
+export const MandapArch = ({ gather }: { gather: number }) => {
+  if (gather <= 0) return null;
+  const sprites = Array.from({ length: ARCH_COUNT }, (_, i): SpriteState => {
+    const fin = archPoint(i);
+    const order = (i % 2 === 0 ? i / 2 : (ARCH_COUNT - 1 - i) / 2 + 0.5) / (ARCH_COUNT / 2); // the two ends first
+    const g = Math.min(1, Math.max(0, gather * 1.65 - order * 0.65));
+    const bush = BUSHES[(i % 2) * 2 + (i % 3 === 0 ? 1 : 0)];
+    const sx = bush.x + (seeded(i * 3 + 1) - 0.5) * 120;
+    const sy = bush.y + (seeded(i * 3 + 2) - 0.5) * 80;
+    const e = easeOut(g);
+    // an arc: up and over toward its place
+    return {
+      name: i % 4 === 3 ? "tuberose" : i % 3 === 1 ? "marigold-b" : "marigold-a",
+      x: lerp(sx, fin.x, e),
+      y: lerp(sy, fin.y, e) - Math.sin(Math.PI * e) * 160,
+      rot: i * 33 + (1 - e) * 260,
+      scale: lerp(0.45, i % 4 === 3 ? 0.85 : 1.05, e),
+      opacity: g > 0 ? Math.min(1, g * 5) : 0,
+    };
+  });
+  return <SpriteField sprites={sprites} />;
+};
 
 const DIYA_SPOTS = [
-  { x: 120, y: 1540 },
-  { x: 215, y: 1585 },
-  { x: 345, y: 1600 },
-  { x: 460, y: 1612 },
-  { x: 620, y: 1612 },
-  { x: 735, y: 1600 },
-  { x: 865, y: 1585 },
-  { x: 960, y: 1540 },
+  { x: 120, y: 1560 },
+  { x: 215, y: 1605 },
+  { x: 345, y: 1622 },
+  { x: 460, y: 1632 },
+  { x: 620, y: 1632 },
+  { x: 735, y: 1622 },
+  { x: 865, y: 1605 },
+  { x: 960, y: 1560 },
 ] as const;
 
 export const DIYA_COUNT = DIYA_SPOTS.length;
 
-/**
- * The mandap is split into layers that change at different rates so the browser can composite them separately:
- *  - MandapStructure: floor, canopy, posts, strings (static once built — painted once, never repainted)
- *  - MandapArch: the gathered marigold arch (static once gathered)
- *  - MandapDiyas: small flickering flames
- *  - MandapGlow: a gold bloom (a CSS gradient whose opacity is composited on the GPU)
- * Each is memoised on numeric props, so unchanged layers cost nothing per frame.
- */
-const geom = () => MANDAP;
-
-interface StructureProps {
-  /** The structure growing: posts, canopy, strings, floor. */
-  build: number;
-}
-
-export const MandapStructure = memo(function MandapStructure({ build }: StructureProps) {
-  const { cx, baseY, postX, archCy, archRx, archRy } = geom();
-  const domeA = progress(build, [0.08, 0.6]);
-  const postH = (baseY - 705) * easeOut(progress(build, [0, 0.55]));
-  const valance = progress(build, [0.3, 0.72]);
-  const strings = progress(build, [0.5, 1]);
-  const floor = progress(build, [0, 0.6]);
-
-  return (
-    <g>
-      {/* alpana floor */}
-      <g opacity={floor} transform={`translate(${cx} ${baseY + 38})`}>
-        <ellipse rx={430} ry={78} fill="#f1e2c4" fillOpacity={0.55} stroke={SINDOOR} strokeOpacity={0.55} strokeWidth={4} />
-        <ellipse rx={380} ry={64} fill="none" stroke={GOLD} strokeWidth={3} strokeDasharray="2 12" strokeLinecap="round" />
-        <ellipse rx={300} ry={48} fill="none" stroke={SINDOOR} strokeOpacity={0.5} strokeWidth={3} />
-        {Array.from({ length: 12 }, (_, i) => {
-          const a = (i / 12) * Math.PI * 2;
-          return <ellipse key={i} cx={Math.cos(a) * 250} cy={Math.sin(a) * 40} rx={22} ry={9} transform={`rotate(${(a * 180) / Math.PI} ${Math.cos(a) * 250} ${Math.sin(a) * 40})`} fill="none" stroke={SINDOOR} strokeOpacity={0.6} strokeWidth={3} />;
-        })}
-        {[-120, 120].map((dx) => (
-          <path key={dx} d={`M${dx - 40} 0Q${dx} -20 ${dx + 40} 0Q${dx} 20 ${dx - 40} 0Z`} fill="none" stroke={GOLD} strokeWidth={3} />
-        ))}
-      </g>
-
-      {/* dome canopy */}
-      <g opacity={domeA}>
-        <path
-          d={`M${cx - archRx} ${archCy}A${archRx} ${archRy} 0 0 1 ${cx + archRx} ${archCy}Z`}
-          fill="url(#dome-grad)"
-          stroke={INK}
-          strokeOpacity={0.6}
-          strokeWidth={3}
-        />
-        {Array.from({ length: 9 }, (_, i) => {
-          const a = Math.PI - ((i + 1) / 10) * Math.PI;
-          return (
-            <path
-              key={i}
-              d={`M${cx} ${archCy}L${(cx + archRx * Math.cos(a)).toFixed(1)} ${(archCy - archRy * Math.sin(a)).toFixed(1)}`}
-              stroke={GOLD}
-              strokeWidth={2.4}
-              strokeOpacity={0.55}
-            />
-          );
-        })}
-        <path d={`M${cx - 290} ${archCy - 6}A290 190 0 0 1 ${cx + 290} ${archCy - 6}`} fill="none" stroke={GOLD} strokeWidth={3} strokeOpacity={0.6} strokeDasharray="2 12" strokeLinecap="round" />
-      </g>
-
-      {/* posts: banana-stem pillars wrapped in marigold */}
-      {postX.map((px, pi) => (
-        <g key={px}>
-          <path
-            d={`M${px - 20} ${baseY}L${px - 15} ${baseY - postH}L${px + 15} ${baseY - postH}L${px + 20} ${baseY}Z`}
-            fill="#8a6a3c"
-            stroke={INK}
-            strokeWidth={3}
-          />
-          {[0.2, 0.5, 0.8].map((f) => (
-            <rect key={f} x={px - 19 + f * 4} y={baseY - postH * f - 5} width={38 - f * 8} height={10} fill={GOLD} stroke={INK} strokeOpacity={0.5} strokeWidth={1.6} />
-          ))}
-          {Array.from({ length: 14 }, (_, i) => {
-            const f = i / 13;
-            if (f * 0.9 > postH / (baseY - 705)) return null;
-            return (
-              <Marigold
-                key={i}
-                x={px + Math.sin(f * Math.PI * 5 + pi) * 24}
-                y={baseY - 30 - f * (baseY - 760) * (postH / (baseY - 705))}
-                r={15}
-                variant={i + pi}
-                rot={i * 40}
-              />
-            );
-          })}
-          {/* banana leaves at the foot of each post */}
-          <g opacity={floor}>
-            {[-62, -34, -8, 20, 48].map((ang, i) => (
-              <path
-                key={ang}
-                transform={`translate(${px} ${baseY + 2}) rotate(${ang * (pi === 0 ? 1 : -1)})`}
-                d={`M0 0C${-30 - i * 2} -90 ${-26} -180 0 ${-230 + (i % 2) * 24}C${26} -180 ${30 + i * 2} -90 0 0Z`}
-                fill={i % 2 ? "#4f6b4a" : "#60794f"}
-                stroke={INK}
-                strokeOpacity={0.5}
-                strokeWidth={2}
-               
-              />
-            ))}
-          </g>
-        </g>
-      ))}
-
-      {/* valance with scalloped fringe */}
-      <g opacity={valance} transform={`translate(${cx} ${archCy}) scale(${lerp(0.7, 1, valance)} 1) translate(${-cx} ${-archCy})`}>
-        <rect x={cx - archRx - 8} y={archCy - 2} width={archRx * 2 + 16} height={46} fill={SINDOOR} stroke={INK} strokeWidth={3} />
-        <rect x={cx - archRx - 8} y={archCy + 4} width={archRx * 2 + 16} height={8} fill={GOLD} />
-        <rect x={cx - archRx - 8} y={archCy + 32} width={archRx * 2 + 16} height={6} fill={GOLD} />
-        {Array.from({ length: 24 }, (_, i) => {
-          const w = (archRx * 2 + 16) / 24;
-          const x = cx - archRx - 8 + i * w;
-          return (
-            <path
-              key={i}
-              d={`M${x.toFixed(1)} ${archCy + 44}q${(w / 2).toFixed(1)} 34 ${w.toFixed(1)} 0Z`}
-              fill={i % 2 ? GOLD : SINDOOR}
-              stroke={INK}
-              strokeOpacity={0.6}
-              strokeWidth={1.8}
-            />
-          );
-        })}
-      </g>
-
-      {/* hanging marigold strings */}
-      <g opacity={strings}>
-        {Array.from({ length: 13 }, (_, i) => {
-          const x = cx - archRx + 20 + (i * (archRx * 2 - 40)) / 12;
-          const len = (90 + seeded(i + 4) * 120) * strings;
-          const n = Math.floor(len / 24);
-          return Array.from({ length: n }, (_, j) => (
-            <Marigold key={`${i}-${j}`} x={x} y={archCy + 70 + j * 24} r={11} variant={i + j} rot={j * 50} />
-          ));
-        })}
-      </g>
-
-    </g>
-  );
-});
-
-export const MandapArch = memo(function MandapArch({ gather }: { gather: number }) {
-  return (
-    <g>
-      {/* the gathered arch of flowers (formed during the meeting scene) */}
-      <g>
-        {Array.from({ length: ARCH_COUNT }, (_, i) => {
-          const fin = archPoint(i);
-          const sx = fin.x + (seeded(i * 3 + 1) - 0.5) * 1000;
-          const sy = fin.y - 120 + (seeded(i * 3 + 2) - 0.2) * 700;
-          const g = easeOut(Math.min(1, Math.max(0, gather * 1.7 - (i / ARCH_COUNT) * 0.7)));
-          return (
-            <Marigold
-              key={i}
-              x={lerp(sx, fin.x, g)}
-              y={lerp(sy, fin.y, g)}
-              r={lerp(10, 21, g)}
-              variant={i}
-              rot={i * 33 + (1 - g) * 160}
-            />
-          );
-        })}
-      </g>
-
-    </g>
-  );
-});
-
-export const MandapDiyas = memo(function MandapDiyas({ build, lights, time }: { build: number; lights: number; time: number }) {
+/** Clay lamps along the front of the mandap: baked bowl, flame and glow sprites; the flame flickers by transform. */
+export const MandapDiyas = ({ build, lights, time }: { build: number; lights: number; time: number }) => {
   if (build <= 0.02) return null;
-  return (
-    <g>
-      {/* diyas */}
-      {build > 0.02 && DIYA_SPOTS.map((d, i) => (
-        <Diya key={i} x={d.x} y={d.y} lit={progress(lights, [(i / DIYA_COUNT) * 0.7, (i / DIYA_COUNT) * 0.7 + 0.3])} time={time + i * 11} scale={0.95 + (d.y - 1540) / 600} />
-      ))}
-    </g>
-  );
-});
-
-/** Warm gold bloom behind the couple (the emotional peak). A plain CSS gradient: only its opacity changes. */
-export const MandapGlow = ({ glow }: { glow: number }) =>
-  glow > 0.001 ? (
-    <div
-      style={{
-        position: "absolute",
-        left: MANDAP.cx - 760,
-        top: 1090 - 760,
-        width: 1520,
-        height: 1520,
-        borderRadius: "50%",
-        opacity: glow,
-        willChange: "opacity",
-        background: "radial-gradient(circle, rgba(249,226,160,.9) 0%, rgba(241,196,99,.35) 45%, rgba(241,196,99,0) 70%)",
-        pointerEvents: "none",
-      }}
-    />
-  ) : null;
+  const sprites: SpriteState[] = [];
+  const fade = Math.min(1, build * 3);
+  DIYA_SPOTS.forEach((d, i) => {
+    const lit = progress(lights, [(i / DIYA_COUNT) * 0.7, (i / DIYA_COUNT) * 0.7 + 0.3]);
+    const tt = time + i * 11;
+    const flick = 1 + 0.09 * Math.sin(tt * 0.72) + 0.05 * Math.sin(tt * 1.93 + 1.3);
+    const s = 0.95 + (d.y - 1560) / 600;
+    sprites.push(
+      { name: "glow", x: d.x, y: d.y - 22 * s, scale: Math.max(0.001, 0.7 * s * lit * (0.95 + 0.05 * flick)), opacity: 0.85 * lit * fade },
+      { name: "diya", x: d.x, y: d.y, scale: s, opacity: fade },
+      { name: "flame", x: d.x, y: d.y - 20 * s, rot: Math.sin(tt * 0.41) * 3, scale: Math.max(0.001, s * lit * flick), opacity: lit > 0.01 ? fade : 0 },
+    );
+  });
+  return <SpriteField sprites={sprites} />;
+};
