@@ -112,8 +112,8 @@ export const BEATS = {
     cardEdge: [451, 479],
   },
   invitation: {
-    cardUnfold: [0, 60],
-    emblem: [100, 160],
+    cardUnfold: [0, 124],
+    emblem: [104, 164],
     heading: [140, 190],
     names: [180, 250],
     message: [240, 310],

@@ -2,11 +2,15 @@ import { BEATS } from "../../config/timeline";
 import { Emblem } from "../components/Emblem";
 import { CARD, InvitationCard } from "../components/InvitationCard";
 import { CARD_EDGE_Y, ORNAMENT_SCALE } from "../layout";
-import { easeInOut, lerp, progress } from "../lib/anim";
+import { Easing } from "remotion";
+import { lerp, progress } from "../lib/anim";
 import { useExperience } from "../experience";
 import { useBeat } from "../lib/time";
 
 const B = BEATS.invitation;
+
+/** The card's rise: gathers pace gently, then a long, soft landing that ends as the emblem blooms and the text begins. */
+const rise = Easing.bezier(0.42, 0, 0.1, 1);
 
 /**
  * Scene 4 — the invitation. The card rises from the edge revealed at the end of the
@@ -17,7 +21,7 @@ export const InvitationScene = () => {
   const f = useBeat();
   const { reducedMotion } = useExperience();
 
-  const e = reducedMotion ? 1 : easeInOut(progress(f, B.cardUnfold));
+  const e = reducedMotion ? 1 : progress(f, B.cardUnfold, rise);
   const top = lerp(CARD_EDGE_Y, CARD.top, e);
   const emblemY = top + lerp(-30, 190, e);
   const emblemScale = lerp(ORNAMENT_SCALE, 1, e);
