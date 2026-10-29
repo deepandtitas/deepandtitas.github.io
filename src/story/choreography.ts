@@ -369,7 +369,8 @@ export interface Closing {
 export const closingAt = (f: number, reduced: boolean): Closing => {
   const hp = progress(f, WB.petalCross, (t) => t);
   const morph = progress(hp, [0.82, 1]);
-  const inScene = f <= W_LAST;
+  // up to the invitation scene's first frame: `<= W_LAST` left the half-beat frame before it (2099) with no card at all
+  const inScene = f < W_LAST + 1;
   const edge = progress(f, WB.cardEdge);
   return {
     hp,

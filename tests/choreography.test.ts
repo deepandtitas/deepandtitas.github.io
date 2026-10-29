@@ -231,3 +231,13 @@ describe("sprite fields", () => {
     for (const s of all) expect(Object.keys(ART), s.name).toContain(s.name);
   });
 });
+
+describe("card hand-over", () => {
+  it("keeps the wedding's card on screen on every frame until the invitation scene starts (no empty frame)", async () => {
+    const { closingAt } = await import("../src/story/choreography");
+    const end = sceneDuration("wedding");
+    // every 60 FPS frame (half beat) from the card's first full frame to the invitation scene's first frame
+    for (let f = BEATS.wedding.cardEdge[0] + 1; f < end; f += 0.5) expect(closingAt(f, false).cardVisible, `beat ${f}`).toBe(true);
+    expect(closingAt(end, false).cardVisible).toBe(false);
+  });
+});
