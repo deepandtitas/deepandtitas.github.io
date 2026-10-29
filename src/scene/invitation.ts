@@ -41,6 +41,9 @@ const VENUE_SPLIT = {
   en: { nameRight: 345.53, noteLeft: 354.89, noteDrop: 2.9 },
 } as const;
 
+/** Empirical: the overlay lays the Bengali names glyphs about 2 px higher than the old flex column did (Galada at 134 px). */
+const NAMES_NUDGE = { bn: 2, en: 0 } as const;
+
 const roundedRectPath = (w: number, h: number, r: number): string =>
   `M${r} 0H${w - r}A${r} ${r} 0 0 1 ${w} ${r}V${h - r}A${r} ${r} 0 0 1 ${w - r} ${h}H${r}A${r} ${r} 0 0 1 0 ${h - r}V${r}A${r} ${r} 0 0 1 ${r} 0Z`;
 
@@ -339,7 +342,7 @@ export const invitationCard = (localBeat: number, opts: CardOptions, ctx: FrameC
   };
 
   field("heading", tx.invitation, "card-heading", cx, L.heading, heading);
-  field("names", tx.title, "card-names", cx, L.names, names, "center", Math.max(0, shimmer));
+  field("names", tx.title, "card-names", cx, L.names + NAMES_NUDGE[lang], names, "center", Math.max(0, shimmer));
   field("message", tx.invitationMessage, "card-message", cx, L.message, message);
 
   for (const key of EVENT_KEYS) {

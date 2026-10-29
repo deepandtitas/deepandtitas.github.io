@@ -4,7 +4,7 @@ import type { OverlayItem } from "../render/overlay";
 import { progress, ramp, settle } from "../story/anim";
 import { HOTSPOTS, HOTSPOT_SIZE } from "../story/layout";
 import { LOTUS_BASE_Y, PATH_T_LOTUS, pathCenterline, pathPoint } from "../story/path";
-import { BEATS, SCENE_OVERLAP, sceneDuration } from "../story/timeline";
+import { BEATS, SCENE_BEATS, SCENE_OVERLAP, sceneDuration } from "../story/timeline";
 import type { FrameContext, FrameOutput } from "./frame";
 import { ALPANA_CENTER, alpanaOps } from "./shapes/alpana";
 import { lotusBounds, lotusOps } from "./shapes/lotus";
@@ -46,6 +46,8 @@ export const awakening = (beat: number, ctx: FrameContext): FrameOutput => {
   const live = beat >= 0 && beat < dur + SCENE_OVERLAP.awakening;
   const exit = progress(beat, [dur + 8, dur + 58]);
   const sceneAlpha = live ? 1 - exit : 0;
+  // the garden dissolves in over the picture; in the old DOM it also covered this scene's text, which here sits above the canvas
+  const textAlpha = sceneAlpha * (1 - progress(beat - SCENE_BEATS.meeting.start, BEATS.meeting.gardenIn));
 
   const titleP = wipe(progress(beat, B.namesReveal), TEXT_WIDTH[lang].title);
   const subtitleP = wipe(progress(beat, B.subtitleIn), TEXT_WIDTH[lang].subtitle);
@@ -59,7 +61,7 @@ export const awakening = (beat: number, ctx: FrameContext): FrameOutput => {
       y: lineCentre(bn ? 338 : 336, bn ? 156 : 168),
       anchor: "center",
       style: "title",
-      opacity: titleP > 0 ? sceneAlpha : 0,
+      opacity: titleP > 0 ? textAlpha : 0,
       reveal: titleP,
     },
     {
@@ -70,7 +72,7 @@ export const awakening = (beat: number, ctx: FrameContext): FrameOutput => {
       y: lineCentre(bn ? 572 : 570, bn ? 50 : 56),
       anchor: "center",
       style: "subtitle",
-      opacity: subtitleP > 0 ? sceneAlpha : 0,
+      opacity: subtitleP > 0 ? textAlpha : 0,
       reveal: subtitleP,
     },
     {

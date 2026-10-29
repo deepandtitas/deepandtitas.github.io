@@ -22,7 +22,7 @@ const ADB = opt("adb", process.env.ADB ?? (existsSync(sdkAdb) ? sdkAdb : "adb"))
 const adb = (...a) => execFileSync(ADB, a).toString();
 
 // scene boundaries in frames, read from the timeline so this script never drifts from it
-const timeline = readFileSync(path.join(root, "src", "config", "timeline.ts"), "utf8");
+const timeline = readFileSync(path.join(root, "src", "story", "timeline.ts"), "utf8");
 const fpb = Number(/export const FPS = (\d+)/.exec(timeline)[1]) / Number(/export const BEAT_FPS = (\d+)/.exec(timeline)[1]);
 const SCENES = Object.fromEntries([...timeline.matchAll(/(\w+): \{ start: (\d+), end: (\d+) \}/g)].map(([, id, a, b]) => [id, { start: +a * fpb, end: +b * fpb }]));
 // stretches to measure: [label, first frame] (each plays `secs` seconds from there)
