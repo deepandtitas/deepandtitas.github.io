@@ -5,7 +5,8 @@ import { describe, expect, it } from "vitest";
 import { ART } from "../src/art/manifest";
 
 const root = path.resolve(__dirname, "..");
-const OLD_MANIFEST = "C:/Projects/deepandtitas.github.io/src/remotion/art-manifest.ts";
+// the build before the canvas remake (commit 3004fa2), e.g. `git worktree add ../dt-old 3004fa2`; skipped without it
+const OLD_MANIFEST = path.resolve(process.env.OLD_BUILD ?? "../dt-old", "src/remotion/art-manifest.ts");
 
 describe("art manifest", () => {
   const entries = Object.entries(ART);

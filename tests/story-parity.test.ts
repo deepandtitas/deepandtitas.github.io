@@ -1,9 +1,11 @@
 /**
  * Parity: the pure story core (src/story) must produce the same numbers as the OLD build for the same inputs.
- * The old build is imported straight from its folder (read-only reference). When that folder is not on this machine the
- * whole file is skipped; the unit tests in the other story test files still run.
+ * The old build (commit 3004fa2, before the canvas remake) is imported straight from a checkout of it: e.g.
+ * `git worktree add ../dt-old 3004fa2`, then run with OLD_BUILD=../dt-old. Without one the whole file is skipped; the
+ * unit tests in the other story test files still run.
  */
 import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { Easing } from "remotion";
 import { describe, expect, it } from "vitest";
 import * as anim from "../src/story/anim";
@@ -14,8 +16,8 @@ import * as path from "../src/story/path";
 import * as rig from "../src/story/rig";
 import * as timeline from "../src/story/timeline";
 
-const OLD = "C:/Projects/deepandtitas.github.io/src";
-const HAVE_OLD = existsSync(OLD);
+const OLD = resolve(process.env.OLD_BUILD ?? "../dt-old", "src").replace(/\\/g, "/");
+const HAVE_OLD = existsSync(`${OLD}/config/timeline.ts`);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
